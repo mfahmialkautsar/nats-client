@@ -3,6 +3,7 @@
   "displayName": "NATS Client",
   "description": "Just like HTTP Client, but for NATS",
   "version": "0.0.1",
+  "publisher": "mfahmialkautsar",
   "engines": {
     "vscode": "^1.106.0"
   },
@@ -20,10 +21,10 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "pnpm run compile && pnpm run lint",
+    "vscode:prepublish": "bun run compile",
+    "compile": "bun build src/extension.ts --outdir=out --target=node --external vscode --format=cjs",
+    "watch": "bun build src/extension.ts --outdir=out --target=node --sourcemap=external --external vscode --format=cjs --watch",
+    "pretest": "bun run compile && bun run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },
@@ -33,7 +34,6 @@
     "@types/node": "22.x",
     "typescript-eslint": "^8.46.3",
     "eslint": "^9.39.1",
-    "typescript": "^5.9.3",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2"
   }
