@@ -1,36 +1,36 @@
 // See https://go.microsoft.com/fwlink/?LinkId=733558
 // for the documentation about the tasks.json format
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"type": "bun",
-			"script": "watch",
-			"problemMatcher": {
-				"owner": "bun",
-				"fileLocation": ["relative", "${workspaceFolder}"],
-				"pattern": [
-					{
-						"regexp": "^(.*):(\\d+):(\\d+): (.*)$",
-						"file": 1,
-						"line": 2,
-						"message": 5
-					}
-				],
-				"background": {
-					"activeOnStart": true,
-					"beginsPattern": "Bundled|Watching",
-					"endsPattern": "(Watching for file changes|Watching for changes|Built in [0-9]+ms|Done in [0-9]+ms|Bundled .* in [0-9]+ms|Compiled successfully)"
-				}
-			},
-			"isBackground": true,
-			"presentation": {
-				"reveal": "never"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "bun",
+      "script": "watch",
+      "problemMatcher": {
+        "owner": "bun",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": [
+          {
+            "regexp": "^(.*):(\\d+):(\\d+): (.*)$",
+            "file": 1,
+            "line": 2,
+            "message": 5
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Bundled|Watching",
+          "endsPattern": ".*"
+        }
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
 }
