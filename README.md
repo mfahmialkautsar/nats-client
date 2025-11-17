@@ -1,71 +1,84 @@
-# nats-client README
+# NATS Client for VS Code
 
-This is the README for your extension "nats-client". After writing up a brief description, we recommend including the following sections.
+[![CI](https://github.com/mfahmialkautsar/nats-client/actions/workflows/ci.yml/badge.svg)](https://github.com/mfahmialkautsar/nats-client/actions/workflows/ci.yml)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/mfahmialkautsar.nats-client.svg)](https://marketplace.visualstudio.com/items?itemName=mfahmialkautsar.nats-client)
+[![License](https://img.shields.io/github/license/mfahmialkautsar/nats-client)](LICENSE)
+
+A VS Code workflow inspired by the HTTP Client: author `.nats` files, run CodeLens actions, visualize replies, and manage connection variables without leaving the editor.
+
+## Highlights
+
+- **NATS-native scripts** – Parse `SUBSCRIBE`, `PUBLISH`, `REQUEST`, `REPLY`, and `JETSTREAM` blocks with headers, payloads, and metadata via `src/core/nats-document-parser.ts`.
+- **One-click execution** – `src/features/code-lens` attaches CodeLens controls that start or stop subscriptions, fire requests, publish payloads, and pull JetStream batches without switching focus.
+- **Structured logging** – `OutputChannelRegistry` multiplexes per-subject logs while `appendLogBlock` groups meta data, headers, and payload previews in the primary output channel.
+- **JetStream tooling** – The `nats.jetStreamPull` command (see `register-jetstream-pull-command.ts`) hydrates durable pullers that honor timeout and batch headers.
+- **Environment-aware variables** – Manage secrets and templated tokens via the `NATS Variables` tree view backed by `VariableStore`, including `{{token}}` substitutions and `{{env:NAME}}` lookups.
+- **Status-aware sessions** – `StatusBarController` keeps an at-a-glance connection count, while `NatsSession` tracks active subscriptions and reply handlers so you can tear them down quickly.
+
+## Script format
+
+Each action block mimics the HTTP Client grammar:
+
+```nats
+REQUEST nats://localhost:4222/lab.echo
+NATS-Timeout: 5000
+Trace-Id: randomId()
+
+{
+	"id": randomId(),
+	"subject": "cpu"
+}
+```
+
+- Headers prefixed with `NATS-` configure connection metadata (server overrides, JetStream durable names, batch sizes, etc.).
+- Trace headers (`Trace-Id`, `Responder-Id`, …) are forwarded to the server.
+- Variables defined in the tree view can be referenced via `{{token}}`; environment variables use `{{env:NAME}}`.
+- Use triple hashes (`###`) to separate multiple actions inside the same document.
+
+## Examples
+
+Ready-to-run flows live under `examples/`:
+
+- `examples/pub-sub.nats` – two concurrent subscriptions plus matching publish blocks for quick smoke tests.
+- `examples/request-reply.nats` – combines reply handlers with literal and JSON requests, showing how `$msg` templates render responses.
+- `examples/jetstream-pull.nats` – demonstrates durable JetStream pulls (`NATS-Stream`, `NATS-Durable`, and `NATS-Batch`).
+
+Open an example, hover the CodeLens for the action you want, and execute the command to stream results into the output channel.
+
+## Variables and templating
+
+- The `NATS Variables` tree appears in the Explorer view (`NATS Variables`). Use the view title buttons and the item/context menus to add, edit, delete, copy, and set the active environment.
+- The tree stores named variables per environment; the active environment is used when resolving tokens before requests, publishes, subscriptions, and reply handlers.
+- Reference variables using `{{name}}`; use `{{env:NAME}}` to read OS environment variables.
+- Built-in helpers include `randomId()` and `$json.*` / `$msg.*` shortcuts evaluated by `nats-actions` and `nats-session` for templated replies.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+The extension contributes the following entry points:
 
-For example if there is an image subfolder under your extension project workspace:
+- Inline CodeLens controls appear above action blocks in `.nats` files; these are the primary way to run subscriptions, requests, publishes, and reply handlers.
+- A `NATS Variables` Explorer view provides add/edit/delete and copy actions for environments and variables via view title buttons and context menus.
+- The status bar shows the current active connection count. A connection management QuickPick is available via the `NATS: Manage Connections` command (registered by the extension).
+- Status bar indicator that surfaces active connection counts.
 
-\!\[feature X\]\(images/feature-x.png\)
+## Configuration
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+| Setting                       | Default | Description                                                                              |
+| ----------------------------- | ------- | ---------------------------------------------------------------------------------------- |
+| `natsClient.requestTimeoutMs` | `15000` | Fallback timeout for `REQUEST` and JetStream pull actions when `NATS-Timeout` is absent. |
+| `natsClient.autoRevealOutput` | `false` | Automatically reveals the main output channel after every publish or request.            |
 
-## Requirements
+## Development workflow
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+```bash
+bun install
+bun run watch                 # incremental builds while editing
+bun run verify                # format, lint, typecheck, and unit tests
+bun run test:e2e              # Vitest e2e suite
+bun run integration:test      # VS Code harness (xvfb on CI)
+```
 
-## Extension Settings
+## Contributing & support
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+- Issues: [github.com/mfahmialkautsar/nats-client/issues](https://github.com/mfahmialkautsar/nats-client/issues)
+- Discussions and feature requests are welcome—attach example `.nats` files when possible so we can reproduce flows quickly.
