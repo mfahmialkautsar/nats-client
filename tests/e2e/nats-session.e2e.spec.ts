@@ -54,7 +54,7 @@ describe("NatsSession e2e (Testcontainers)", () => {
     await session!.startSubscription(natsUrl, "e2e.metrics", sink, "sub-e2e");
     await new Promise((r) => setTimeout(r, 200));
     const publishHeaders = createHeaders();
-    publishHeaders.set("Content-Type", "application/json");
+    publishHeaders.set("Trace-Id", "trace-id-123");
     helperConnection!.publish(
       "e2e.metrics",
       new TextEncoder().encode('{"value":42}'),
@@ -64,7 +64,7 @@ describe("NatsSession e2e (Testcontainers)", () => {
     await waitFor(
       () =>
         sink.lines.some((line: string) =>
-          line.includes("Content-Type: application/json"),
+          line.includes("Trace-Id: trace-id-123"),
         ),
       { timeoutMs: 15000 },
     );
@@ -73,7 +73,7 @@ describe("NatsSession e2e (Testcontainers)", () => {
     );
     expect(
       sink.lines.some((line: string) =>
-        line.includes("Content-Type: application/json"),
+        line.includes("Trace-Id: trace-id-123"),
       ),
     ).toBe(true);
     session!.stopSubscription("sub-e2e");
@@ -100,7 +100,7 @@ describe("NatsSession e2e (Testcontainers)", () => {
       "e2e.request.reply",
       JSON.stringify({ name: "Requestor" }),
       { timeoutMs: 5000 },
-      { "Content-Type": "application/json" },
+      { "Trace-Id": "trace-id-123" },
     );
 
     const responseItem = log.items.find((it) => it.title === "Response");
@@ -108,7 +108,7 @@ describe("NatsSession e2e (Testcontainers)", () => {
     expect(responseItem?.body).toContain('"greeting":"Hello Requestor"');
     // Ensure headers from request and response are present in the returned items
     const hasContentType = log.items.some(
-      (it) => it.headers && it.headers["Content-Type"] === "application/json",
+      (it) => it.headers && it.headers["Trace-Id"] === "trace-id-123",
     );
     const hasProcessedBy = log.items.some(
       (it) => it.headers && it.headers["Processed-By"] === "helper",
