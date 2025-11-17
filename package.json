@@ -1,40 +1,316 @@
 {
   "name": "nats-client",
   "displayName": "NATS Client",
-  "description": "Just like HTTP Client, but for NATS",
+  "description": "Just like REST Client, but for NATS",
   "version": "0.0.1",
   "publisher": "mfahmialkautsar",
+  "license": "MIT",
+  "keywords": [
+    "nats",
+    "messaging",
+    "jetstream",
+    "pubsub",
+    "request-reply",
+    "microservices",
+    "client",
+    "testing"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mfahmialkautsar/nats-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mfahmialkautsar/nats-client/issues"
+  },
+  "homepage": "https://github.com/mfahmialkautsar/nats-client",
   "engines": {
-    "vscode": "^1.106.0"
+    "vscode": "^1.106.0",
+    "node": ">=24.0.0"
   },
   "categories": [
+    "Testing",
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "workspaceContains:**/*.nats"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "nats-client.helloWorld",
-        "title": "Hello World"
+        "command": "nats.startSubscription",
+        "title": "NATS: Start Subscription"
+      },
+      {
+        "command": "nats.stopSubscription",
+        "title": "NATS: Stop Subscription"
+      },
+      {
+        "command": "nats.sendRequest",
+        "title": "NATS: Send Request"
+      },
+      {
+        "command": "nats.publish",
+        "title": "NATS: Publish Message"
+      },
+      {
+        "command": "nats.startReplyHandler",
+        "title": "NATS: Start Reply Handler"
+      },
+      {
+        "command": "nats.stopReplyHandler",
+        "title": "NATS: Stop Reply Handler"
+      },
+      {
+        "command": "nats.jetStreamPull",
+        "title": "NATS: Pull JetStream Messages"
+      },
+      {
+        "command": "nats.showOutput",
+        "title": "NATS: Show Output"
+      },
+      {
+        "command": "nats.variables.view.addEnvironment",
+        "title": "NATS: Add Environment",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "nats.variables.view.deleteEnvironment",
+        "title": "NATS: Delete Environment",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "nats.variables.view.setActiveEnvironment",
+        "title": "NATS: Set Active Environment",
+        "icon": "$(check)"
+      },
+      {
+        "command": "nats.variables.view.addVariable",
+        "title": "NATS: Add Variable",
+        "icon": "$(add)"
+      },
+      {
+        "command": "nats.variables.view.editVariable",
+        "title": "NATS: Edit Variable",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "nats.variables.view.deleteVariable",
+        "title": "NATS: Delete Variable",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "nats.variables.view.copyValue",
+        "title": "NATS: Copy Variable Value",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "nats.connections.menu",
+        "title": "NATS: Manage Connections",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "nats.connections.reset",
+        "title": "NATS: Reset Connections",
+        "icon": "$(refresh)"
+      }
+    ],
+    "configuration": {
+      "title": "NATS Client",
+      "properties": {
+        "natsClient.requestTimeoutMs": {
+          "type": "number",
+          "default": 15000,
+          "minimum": 1000,
+          "description": "Default timeout in milliseconds for request/response operations and JetStream pulls when NATS-Timeout is not specified."
+        },
+        "natsClient.autoRevealOutput": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically reveal the main output channel after requests or publishes."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "nats",
+        "extensions": [
+          ".nats"
+        ],
+        "configuration": "./syntaxes/nats-language-configuration.json"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "natsVariablesView",
+          "name": "NATS Variables"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "nats.startSubscription",
+          "when": "false"
+        },
+        {
+          "command": "nats.stopSubscription",
+          "when": "false"
+        },
+        {
+          "command": "nats.sendRequest",
+          "when": "false"
+        },
+        {
+          "command": "nats.publish",
+          "when": "false"
+        },
+        {
+          "command": "nats.startReplyHandler",
+          "when": "false"
+        },
+        {
+          "command": "nats.stopReplyHandler",
+          "when": "false"
+        },
+        {
+          "command": "nats.jetStreamPull",
+          "when": "false"
+        },
+        {
+          "command": "nats.showOutput",
+          "when": "false"
+        },
+        {
+          "command": "nats.variables.view.addEnvironment",
+          "when": "false"
+        },
+        {
+          "command": "nats.variables.view.deleteEnvironment",
+          "when": "false"
+        },
+        {
+          "command": "nats.variables.view.setActiveEnvironment",
+          "when": "false"
+        },
+        {
+          "command": "nats.variables.view.addVariable",
+          "when": "false"
+        },
+        {
+          "command": "nats.variables.view.editVariable",
+          "when": "false"
+        },
+        {
+          "command": "nats.variables.view.deleteVariable",
+          "when": "false"
+        },
+        {
+          "command": "nats.variables.view.copyValue",
+          "when": "false"
+        },
+        {
+          "command": "nats.connections.menu",
+          "when": "false"
+        },
+        {
+          "command": "nats.connections.reset",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "nats.variables.view.addEnvironment",
+          "when": "view == natsVariablesView",
+          "group": "navigation@1",
+          "icon": "$(new-folder)"
+        },
+        {
+          "command": "nats.variables.view.addVariable",
+          "when": "view == natsVariablesView",
+          "group": "navigation@2",
+          "icon": "$(add)"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "nats.variables.view.setActiveEnvironment",
+          "when": "view == natsVariablesView && viewItem == natsEnvironment",
+          "group": "inline@1"
+        },
+        {
+          "command": "nats.variables.view.addVariable",
+          "when": "view == natsVariablesView && viewItem == natsEnvironment",
+          "group": "inline@2"
+        },
+        {
+          "command": "nats.variables.view.deleteEnvironment",
+          "when": "view == natsVariablesView && viewItem == natsEnvironment",
+          "group": "inline@3"
+        },
+        {
+          "command": "nats.variables.view.editVariable",
+          "when": "view == natsVariablesView && viewItem == natsVariable",
+          "group": "inline@1"
+        },
+        {
+          "command": "nats.variables.view.deleteVariable",
+          "when": "view == natsVariablesView && viewItem == natsVariable",
+          "group": "inline@2"
+        },
+        {
+          "command": "nats.variables.view.copyValue",
+          "when": "view == natsVariablesView && viewItem == natsVariable",
+          "group": "inline@3"
+        }
+      ]
+    },
+    "grammars": [
+      {
+        "language": "nats",
+        "scopeName": "source.nats",
+        "path": "./syntaxes/nats.tmLanguage.json"
       }
     ]
   },
   "scripts": {
     "vscode:prepublish": "bun run compile",
+    "vscode:package": "vsce package",
+    "vscode:publish": "vsce publish",
     "compile": "bun build src/extension.ts --outdir=out --target=node --external vscode --format=cjs",
     "watch": "bun build src/extension.ts --outdir=out --target=node --sourcemap=external --external vscode --format=cjs --watch",
-    "pretest": "bun run compile && bun run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "pretest": "bun run compile && bun run typecheck && bun run lint",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --exclude tests/e2e/**",
+    "test:watch": "vitest watch --exclude tests/e2e/**",
+    "test:e2e": "vitest run tests/e2e/**",
+    "integration:test": "vscode-test",
+    "verify": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.106.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.46.3",
-    "eslint": "^9.39.1",
+    "@types/vscode": "^1.106.0",
+    "@vitest/coverage-v8": "^4.0.9",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.7.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-prettier": "^5.5.4",
+    "glob": "^11.0.3",
+    "mocha": "^11.7.5",
+    "prettier": "^3.6.2",
+    "testcontainers": "^11.8.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^4.0.9"
+  },
+  "dependencies": {
+    "nats": "^2.29.3"
   }
 }
