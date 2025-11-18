@@ -63,23 +63,31 @@ export async function activate(context: vscode.ExtensionContext) {
     if (!selection) {
       return;
     }
-    if (selection.description === "reset") {
-      await session.reset();
-      channelRegistry.disposeAll();
-      codeLensProvider.refresh();
-      updateConnections();
-      vscode.window.showInformationMessage(
-        "All NATS connections have been reset",
-      );
-    } else if (selection.description === "view") {
-      if (connections.length === 0) {
-        vscode.window.showInformationMessage("No active connections");
-        return;
+    switch (selection.description) {
+      case "reset": {
+        await session.reset();
+        channelRegistry.disposeAll();
+        codeLensProvider.refresh();
+        updateConnections();
+        vscode.window.showInformationMessage(
+          "All NATS connections have been reset",
+        );
+        break;
       }
-      const details = connections.map((conn) => `${conn.server}`).join("\n");
-      vscode.window.showInformationMessage(`Active connections:\n${details}`, {
-        modal: true,
-      });
+      case "view": {
+        if (connections.length === 0) {
+          vscode.window.showInformationMessage("No active connections");
+          return;
+        }
+        const details = connections.map((conn) => `${conn.server}`).join("\n");
+        vscode.window.showInformationMessage(
+          `Active connections:\n${details}`,
+          { modal: true },
+        );
+        break;
+      }
+      default:
+        break;
     }
   });
 
