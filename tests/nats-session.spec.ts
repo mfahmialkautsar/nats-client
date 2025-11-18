@@ -322,6 +322,48 @@ describe("NatsSession", () => {
     await session.reset();
   });
 
+  it("lists active subscriptions and removes them when stopped", async () => {
+    const { session } = buildSession();
+    const sink = new TestSink();
+    await session.startSubscription(DEFAULT_URL, "lab.list", sink, "list-sub");
+    const listed = session.listSubscriptions();
+    expect(
+      listed.some((s) => s.subject === "lab.list" && s.key === "list-sub"),
+    ).toBe(true);
+    session.stopSubscription("list-sub");
+    const after = session.listSubscriptions();
+    expect(after.some((s) => s.key === "list-sub")).toBe(false);
+    await session.reset();
+  });
+
+  it("lists active reply handlers and removes them when stopped", async () => {
+    const { connection, session } = buildSession();
+    const sink = new TestSink();
+    const msg = createMessage('{"value":1}', {
+      subject: "lab.replylist",
+      reply: "inbox",
+    });
+    connection.setSubscriptionMessages("lab.replylist", [msg.msg]);
+    await session.startReplyHandler(
+      DEFAULT_URL,
+      "lab.replylist",
+      "ok",
+      undefined,
+      sink,
+      "reply-list",
+    );
+    const listed = session.listReplyHandlers();
+    expect(
+      listed.some(
+        (r) => r.subject === "lab.replylist" && r.key === "reply-list",
+      ),
+    ).toBe(true);
+    session.stopReplyHandler("reply-list");
+    const after = session.listReplyHandlers();
+    expect(after.some((r) => r.key === "reply-list")).toBe(false);
+    await session.reset();
+  });
+
   it("tracks reply handler counts per subject", async () => {
     const { connection, session } = buildSession();
     const sink = new TestSink();

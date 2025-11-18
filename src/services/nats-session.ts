@@ -281,6 +281,28 @@ export class NatsSession {
     }));
   }
 
+  /**
+   * Returns an array describing active subscriptions (non-reply).
+   */
+  listSubscriptions(): Array<{ server: string; subject: string; key: string }> {
+    return Array.from(this.subscriptions.entries()).map(([key, ctx]) => ({
+      server: ctx.server,
+      subject: ctx.subject,
+      key,
+    }));
+  }
+
+  /**
+   * Returns an array describing active reply handlers.
+   */
+  listReplyHandlers(): Array<{ server: string; subject: string; key: string }> {
+    return Array.from(this.replies.entries()).map(([key, ctx]) => ({
+      server: ctx.server,
+      subject: ctx.subject,
+      key,
+    }));
+  }
+
   private async getConnection(url: string): Promise<ManagedConnection> {
     const serverKey = this.normalizeServerUrl(url);
     const existing = this.connections.get(serverKey);
