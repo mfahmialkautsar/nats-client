@@ -410,6 +410,8 @@ export async function activate(context: vscode.ExtensionContext) {
         updateConnections();
       }),
   });
+
+  return { session, channelRegistry } as const;
 }
 
 export async function deactivate(): Promise<void> {
