@@ -1,8 +1,8 @@
 # NATS Client for VS Code
 
-[![CI](https://github.com/mfahmialkautsar/nats-client/actions/workflows/ci.yml/badge.svg)](https://github.com/mfahmialkautsar/nats-client/actions/workflows/ci.yml)
+[![CI](https://github.com/mfahmialkautsar/vscode-nats-client/actions/workflows/ci.yml/badge.svg)](https://github.com/mfahmialkautsar/vscode-nats-client/actions/workflows/ci.yml)
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/mfahmialkautsar.nats-client.svg)](https://marketplace.visualstudio.com/items?itemName=mfahmialkautsar.nats-client)
-[![License](https://img.shields.io/github/license/mfahmialkautsar/nats-client)](LICENSE)
+[![License](https://img.shields.io/github/license/mfahmialkautsar/vscode-nats-client)](LICENSE)
 
 A VS Code workflow inspired by the HTTP Client: author `.nats` files, run CodeLens actions, visualize replies, and manage connection variables without leaving the editor.
 
@@ -80,5 +80,5 @@ bun run integration:test      # VS Code harness (xvfb on CI)
 
 ## Contributing & support
 
-- Issues: [github.com/mfahmialkautsar/nats-client/issues](https://github.com/mfahmialkautsar/nats-client/issues)
+- Issues: [github.com/mfahmialkautsar/vscode-nats-client/issues](https://github.com/mfahmialkautsar/vscode-nats-client/issues)
 - Discussions and feature requests are welcome—attach example `.nats` files when possible so we can reproduce flows quickly.
