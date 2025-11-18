@@ -70,6 +70,16 @@
         "title": "NATS: Show Output"
       },
       {
+        "command": "nats.showSubscriptions",
+        "title": "NATS: Show Subscriptions",
+        "icon": "$(list-ordered)"
+      },
+      {
+        "command": "nats.showReplyHandlers",
+        "title": "NATS: Show Reply Handlers",
+        "icon": "$(comment)"
+      },
+      {
         "command": "nats.variables.view.addEnvironment",
         "title": "NATS: Add Environment",
         "icon": "$(new-folder)"
