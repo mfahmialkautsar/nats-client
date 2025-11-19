@@ -54,7 +54,7 @@ export class NatsFormatter {
         if (lines.length > 0 && lines[lines.length - 1].length !== 0) {
           lines.push("");
         }
-        lines.push("###");
+        lines.push(segment.line.text.trim());
         lines.push("");
         continue;
       }
