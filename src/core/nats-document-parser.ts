@@ -6,7 +6,7 @@ import {
 } from "@/core/nats-actions";
 
 const RANDOM_ID_PATTERN = /randomId\(\)/gi;
-const BLOCK_DELIMITER = /^\s*#{3,}\s*$/;
+const BLOCK_DELIMITER = /^\s*#{3,}.*$/;
 const COMMENT_PATTERN = /^\s*(#|\/\/)/;
 const META_HEADERS = new Set([
   "nats-server",

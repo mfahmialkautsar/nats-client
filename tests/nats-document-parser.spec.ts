@@ -189,6 +189,16 @@ describe("segmentNatsDocument", () => {
     expect(segments[1]).toMatchObject({ kind: "delimiter" });
     expect(segments[2]).toMatchObject({ kind: "block" });
   });
+
+  it("treats delimiter lines with trailing text as delimiters", () => {
+    const segments = segmentNatsDocument(
+      "REQUEST demo\n\n### Section A\nPUBLISH lab",
+    );
+    expect(segments[1]).toMatchObject({ kind: "delimiter" });
+    if (segments[1].kind === "delimiter") {
+      expect(segments[1].line.text.trim()).toBe("### Section A");
+    }
+  });
 });
 
 describe("isActionType", () => {
