@@ -436,19 +436,58 @@ export async function activate(context: vscode.ExtensionContext) {
       const subject = variableStore.resolveText(action.subject);
       const payload = variableStore.resolveOptional(action.data) ?? "";
       const headers = variableStore.resolveRecord(action.headers);
-      const result = await session.sendRequest(
-        server,
-        subject,
-        payload,
-        { timeoutMs: action.timeoutMs ?? settings.requestTimeoutMs },
-        headers,
+
+      const result = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Sending request to ${subject}...`,
+          cancellable: false,
+        },
+        async () => {
+          try {
+            const result = await session.sendRequest(
+              server,
+              subject,
+              payload,
+              { timeoutMs: action.timeoutMs ?? settings.requestTimeoutMs },
+              headers,
+            );
+            const mainChannel = channelRegistry.main();
+            appendLogBlock(mainChannel, result);
+            if (settings.autoRevealOutput) {
+              mainChannel.show(true);
+            }
+            updateConnections();
+            return { success: true, subject };
+          } catch (error) {
+            const errorMsg =
+              error instanceof Error ? error.message : String(error);
+            if (
+              errorMsg.includes("DISCONNECT") ||
+              errorMsg.includes("CONNECTION")
+            ) {
+              const connInfo = session
+                .listConnections()
+                .find((c) => c.url === server);
+              if (connInfo) {
+                session.markConnectionClosed(connInfo.server);
+              }
+            }
+            updateConnections();
+            return { success: false, subject, error: errorMsg };
+          }
+        },
       );
-      const mainChannel = channelRegistry.main();
-      appendLogBlock(mainChannel, result);
-      if (settings.autoRevealOutput) {
-        mainChannel.show(true);
+
+      if (result.success) {
+        vscode.window.showInformationMessage(
+          `Request sent to ${result.subject}`,
+        );
+      } else {
+        vscode.window.showErrorMessage(
+          `Request to ${result.subject} failed: ${result.error}`,
+        );
       }
-      updateConnections();
     },
   );
 
@@ -471,14 +510,55 @@ export async function activate(context: vscode.ExtensionContext) {
       const subject = variableStore.resolveText(action.subject);
       const payload = variableStore.resolveOptional(action.data) ?? "";
       const headers = variableStore.resolveRecord(action.headers);
-      const result = await session.publish(server, subject, payload, headers);
-      const mainChannel = channelRegistry.main();
-      appendLogBlock(mainChannel, result);
-      if (settings.autoRevealOutput) {
-        mainChannel.show(true);
+
+      const result = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Publishing to ${subject}...`,
+          cancellable: false,
+        },
+        async () => {
+          try {
+            const result = await session.publish(
+              server,
+              subject,
+              payload,
+              headers,
+            );
+            const mainChannel = channelRegistry.main();
+            appendLogBlock(mainChannel, result);
+            if (settings.autoRevealOutput) {
+              mainChannel.show(true);
+            }
+            updateConnections();
+            return { success: true, subject };
+          } catch (error) {
+            const errorMsg =
+              error instanceof Error ? error.message : String(error);
+            if (
+              errorMsg.includes("DISCONNECT") ||
+              errorMsg.includes("CONNECTION")
+            ) {
+              const connInfo = session
+                .listConnections()
+                .find((c) => c.url === server);
+              if (connInfo) {
+                session.markConnectionClosed(connInfo.server);
+              }
+            }
+            updateConnections();
+            return { success: false, subject, error: errorMsg };
+          }
+        },
+      );
+
+      if (result.success) {
+        vscode.window.showInformationMessage(`Published to ${result.subject}`);
+      } else {
+        vscode.window.showErrorMessage(
+          `Publish to ${result.subject} failed: ${result.error}`,
+        );
       }
-      vscode.window.showInformationMessage(`Published to ${subject}`);
-      updateConnections();
     },
   );
 
