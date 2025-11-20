@@ -21,12 +21,17 @@ interface SubscriptionContext {
   server: string;
   subscription: SubscriptionLike;
   task: Promise<void>;
+  sink: LogSink;
+  template?: string;
+  payload?: string;
+  headers?: HeaderMap;
 }
 
 interface ManagedConnection {
   serverKey: string;
   rawUrl: string;
   connection: NatsConnectionLike;
+  markedClosed: boolean;
 }
 
 export interface RequestOptions {
@@ -68,6 +73,7 @@ export class NatsSession {
       server: connection.serverKey,
       subscription,
       task,
+      sink,
     });
     this.incrementCount(this.subscriptionCounts, connection.serverKey, subject);
   }
@@ -113,6 +119,7 @@ export class NatsSession {
     const timestamp = this.timestamp();
     const prefix = this.connectionInfo(connection.connection);
     connection.connection.publish(subject, payload, { headers });
+    await connection.connection.flush();
     const meta = { timestamp, connection: prefix, subject };
     const items: LogItem[] = [{ title: "Published", body: payload, headers }];
     return { meta, items };
@@ -151,6 +158,10 @@ export class NatsSession {
       server: connection.serverKey,
       subscription,
       task,
+      sink,
+      template,
+      payload,
+      headers: replyHeaders,
     });
     this.incrementCount(this.replyCounts, connection.serverKey, subject);
   }
@@ -216,6 +227,14 @@ export class NatsSession {
           try {
             await Promise.resolve(msg.ack());
           } catch (error) {
+            const errorMsg =
+              error instanceof Error ? error.message : String(error);
+            if (
+              errorMsg.includes("DISCONNECT") ||
+              errorMsg.includes("CONNECTION")
+            ) {
+              this.markConnectionClosed(connection.serverKey);
+            }
             const ts = this.timestamp();
             const metaErr = {
               timestamp: ts,
@@ -274,11 +293,127 @@ export class NatsSession {
     return this.connections.size;
   }
 
-  listConnections(): Array<{ server: string; url: string }> {
+  listConnections(): Array<{
+    server: string;
+    url: string;
+    status: "connected" | "disconnected";
+  }> {
     return Array.from(this.connections.values()).map((entry) => ({
       server: entry.serverKey,
       url: entry.rawUrl,
+      status:
+        entry.markedClosed || entry.connection.isClosed()
+          ? "disconnected"
+          : "connected",
     }));
+  }
+
+  getConnectionStatus(
+    serverKey: string,
+  ): "connected" | "disconnected" | "unknown" {
+    const connection = this.connections.get(serverKey);
+    if (!connection) {
+      return "unknown";
+    }
+    return connection.markedClosed || connection.connection.isClosed()
+      ? "disconnected"
+      : "connected";
+  }
+
+  markConnectionClosed(serverKey: string): void {
+    const connection = this.connections.get(serverKey);
+    if (connection) {
+      connection.markedClosed = true;
+    }
+  }
+
+  async reconnectConnection(serverKey: string): Promise<number> {
+    const existing = this.connections.get(serverKey);
+    if (!existing) {
+      throw new Error(`No connection found for server: ${serverKey}`);
+    }
+
+    const subsToReconnect: Array<{
+      key: string;
+      subject: string;
+      sink: LogSink;
+    }> = [];
+
+    const repliesToReconnect: Array<{
+      key: string;
+      subject: string;
+      sink: LogSink;
+      template?: string;
+      payload?: string;
+      headers?: HeaderMap;
+    }> = [];
+
+    for (const [key, ctx] of Array.from(this.subscriptions.entries())) {
+      if (ctx.server === serverKey) {
+        subsToReconnect.push({
+          key,
+          subject: ctx.subject,
+          sink: ctx.sink,
+        });
+      }
+    }
+
+    for (const [key, ctx] of Array.from(this.replies.entries())) {
+      if (ctx.server === serverKey) {
+        repliesToReconnect.push({
+          key,
+          subject: ctx.subject,
+          sink: ctx.sink,
+          template: ctx.template,
+          payload: ctx.payload,
+          headers: ctx.headers,
+        });
+      }
+    }
+
+    const options = this.buildConnectOptions(existing.rawUrl);
+    const newConnection = await this.connector(options);
+
+    for (const sub of subsToReconnect) {
+      this.stopContext(this.subscriptions, sub.key, this.subscriptionCounts);
+    }
+
+    for (const reply of repliesToReconnect) {
+      this.stopContext(this.replies, reply.key, this.replyCounts);
+    }
+
+    await existing.connection.close();
+
+    const managed: ManagedConnection = {
+      serverKey,
+      rawUrl: existing.rawUrl,
+      connection: newConnection,
+      markedClosed: false,
+    };
+    this.connections.set(serverKey, managed);
+
+    for (const sub of subsToReconnect) {
+      await this.startSubscription(
+        existing.rawUrl,
+        sub.subject,
+        sub.sink,
+        sub.key,
+      );
+    }
+
+    for (const reply of repliesToReconnect) {
+      await this.startReplyHandler(
+        existing.rawUrl,
+        reply.subject,
+        reply.template,
+        reply.payload,
+        reply.sink,
+        reply.key,
+        reply.headers,
+      );
+    }
+
+    return subsToReconnect.length + repliesToReconnect.length;
   }
 
   /**
@@ -311,7 +446,12 @@ export class NatsSession {
     }
     const options = this.buildConnectOptions(url);
     const connection = await this.connector(options);
-    const managed: ManagedConnection = { serverKey, rawUrl: url, connection };
+    const managed: ManagedConnection = {
+      serverKey,
+      rawUrl: url,
+      connection,
+      markedClosed: false,
+    };
     this.connections.set(serverKey, managed);
     return managed;
   }
