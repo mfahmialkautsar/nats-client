@@ -43,3 +43,9 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: bun run vscode:publish -- --pat "${{ env.VSCE_PAT }}"
+
+      - name: Publish to Open VSX Registry
+        if: ${{ env.OVSX_PAT != '' }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: bun x ovsx publish --pat "${{ env.OVSX_PAT }}"
