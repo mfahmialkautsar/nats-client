@@ -13,7 +13,7 @@ export function createDefaultConnector(): NatsConnector {
     wrapConnection(await connect(options as ConnectionOptions));
 }
 
-function wrapConnection(connection: NatsConnection): NatsConnectionLike {
+export function wrapConnection(connection: NatsConnection): NatsConnectionLike {
   return {
     get info() {
       return connection.info;
@@ -44,5 +44,7 @@ function wrapConnection(connection: NatsConnection): NatsConnectionLike {
     },
     jetstream: () => connection.jetstream(),
     close: () => connection.close(),
+    isClosed: () => connection.isClosed(),
+    flush: () => connection.flush(),
   };
 }

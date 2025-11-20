@@ -77,6 +77,14 @@ class FakeConnection implements NatsConnectionLike {
   async close(): Promise<void> {
     this.closed = true;
   }
+
+  isClosed(): boolean {
+    return this.closed;
+  }
+
+  async flush(): Promise<void> {
+    // No-op for tests
+  }
 }
 
 function createConnector(connection: FakeConnection): NatsConnector {

@@ -42,6 +42,8 @@ export interface NatsConnectionLike {
   ): Promise<MsgLike>;
   jetstream?(): JetStreamClient;
   close(): Promise<void> | void;
+  isClosed(): boolean;
+  flush(): Promise<void>;
 }
 
 export interface NatsConnectOptions {
