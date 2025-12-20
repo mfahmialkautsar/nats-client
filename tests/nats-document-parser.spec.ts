@@ -4,7 +4,6 @@ import {
   findActionNearestLine,
   segmentNatsDocument,
 } from "@/core/nats-document-parser";
-import { isActionType } from "@/core/nats-actions";
 
 const sample = `SUBSCRIBE nats://demo.nats.io/lab.metrics
 
@@ -198,13 +197,5 @@ describe("segmentNatsDocument", () => {
     if (segments[1].kind === "delimiter") {
       expect(segments[1].line.text.trim()).toBe("### Section A");
     }
-  });
-});
-
-describe("isActionType", () => {
-  it("identifies valid action keywords", () => {
-    expect(isActionType("subscribe")).toBe(true);
-    expect(isActionType("reply")).toBe(true);
-    expect(isActionType("unknown")).toBe(false);
   });
 });

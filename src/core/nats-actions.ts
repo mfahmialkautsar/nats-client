@@ -26,13 +26,3 @@ export const actionKeywords: Record<NatsActionType, string> = {
   reply: "REPLY",
   jetstreamPull: "JETSTREAM",
 };
-
-export function isActionType(type: string): type is NatsActionType {
-  return (
-    type === "subscribe" ||
-    type === "request" ||
-    type === "publish" ||
-    type === "reply" ||
-    type === "jetstreamPull"
-  );
-}
