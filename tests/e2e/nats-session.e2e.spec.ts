@@ -24,20 +24,11 @@ describe("NatsSession e2e (Testcontainers)", () => {
   let helperConnection: Awaited<ReturnType<typeof connect>> | null = null;
 
   beforeAll(async () => {
-    const started = await Promise.race([
-      new GenericContainer("nats:alpine")
-        .withCommand(["-js"])
-        .withExposedPorts(4222)
-        .start(),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Container startup timed out")),
-          15_000,
-        ),
-      ),
-    ]);
-    container = started;
-    const port = started.getMappedPort(4222);
+    container = await new GenericContainer("nats:alpine")
+      .withCommand(["-js"])
+      .withExposedPorts(4222)
+      .start();
+    const port = container.getMappedPort(4222);
     natsUrl = `nats://127.0.0.1:${port}`;
     session = new NatsSession(createDefaultConnector());
     helperConnection = await connect({ servers: natsUrl });

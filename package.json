@@ -299,9 +299,9 @@
     "lint:fix": "eslint src tests --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --exclude tests/e2e/**",
-    "test:watch": "vitest watch --exclude tests/e2e/**",
-    "test:e2e": "vitest run tests/e2e/**",
+    "test": "vitest run --exclude tests/e2e",
+    "test:watch": "vitest watch --exclude tests/e2e",
+    "test:e2e": "vitest run tests/e2e",
     "integration:test": "vscode-test",
     "verify": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },

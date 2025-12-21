@@ -115,10 +115,7 @@ export class NatsFormatter {
     //   // normal and we'll re-add blanks afterward if necessary.
     // }
 
-    const { headerLines, nextIndex } = this.extractHeaders(
-      lines,
-      requestIndex + 1,
-    );
+    const { headerLines, nextIndex } = this.extractHeaders(lines, scanIndex);
     const bodyLines = this.formatBody(lines.slice(nextIndex));
 
     const output: string[] = [];
