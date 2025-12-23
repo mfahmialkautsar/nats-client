@@ -41,6 +41,8 @@ export default [
       "no-throw-literal": "warn",
       semi: "warn",
       "@typescript-eslint/no-deprecated": "error",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "no-unused-vars": "warn",
     },
   },
 ];
