@@ -28,3 +28,14 @@ export function resolveServer(
   const resolved = variableStore.resolveText(value);
   return resolved.trim().length > 0 ? resolved : undefined;
 }
+
+export function revealChannel(ctx: CommandContext, channel: any) {
+  const settings = readSettings();
+  if (!settings.autoRevealOutput) {
+    return;
+  }
+  const main = ctx.channelRegistry.main();
+  if (channel !== main) {
+    channel.show(true);
+  }
+}

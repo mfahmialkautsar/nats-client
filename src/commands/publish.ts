@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { CommandContext } from "./context";
-import { resolveAction, resolveServer } from "./utils";
+import { resolveAction, resolveServer, revealChannel } from "./utils";
 import { readSettings } from "@/services/configuration";
 import { appendLogBlock } from "@/services/log-sink";
 
@@ -42,9 +42,7 @@ export async function publish(
         );
         const mainChannel = ctx.channelRegistry.main();
         appendLogBlock(mainChannel, result);
-        if (settings.autoRevealOutput) {
-          mainChannel.show(true);
-        }
+        revealChannel(ctx, mainChannel);
         ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
         return { success: true, subject };
       } catch (error) {

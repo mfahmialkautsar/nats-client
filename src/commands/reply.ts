@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { CommandContext } from "./context";
-import { resolveAction, resolveServer } from "./utils";
+import { resolveAction, resolveServer, revealChannel } from "./utils";
 import { buildKey } from "@/features/code-lens/nats-code-lens-provider";
 
 export async function startReplyHandler(
@@ -42,7 +42,7 @@ export async function startReplyHandler(
       key,
       headers,
     );
-    channel.show(true);
+    revealChannel(ctx, channel);
     vscode.window.showInformationMessage(
       `Reply handler started for ${subject}`,
     );

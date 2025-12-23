@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { CommandContext } from "./context";
-import { resolveAction, resolveServer } from "./utils";
+import { resolveAction, resolveServer, revealChannel } from "./utils";
 import { buildKey } from "@/features/code-lens/nats-code-lens-provider";
 
 export async function startSubscription(
@@ -25,7 +25,7 @@ export async function startSubscription(
   const channel = ctx.channelRegistry.acquire(subject, key);
   try {
     await ctx.session.startSubscription(server, subject, channel, key);
-    channel.show(true);
+    revealChannel(ctx, channel);
     vscode.window.showInformationMessage(`Subscription started on ${subject}`);
     ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
   } catch (error) {
