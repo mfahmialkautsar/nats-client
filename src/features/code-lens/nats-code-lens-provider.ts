@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { parseNatsDocument } from "@/core/nats-document-parser";
 import { NatsSession } from "@/services/nats-session";
+import { VariableStore } from "@/services/variable-store";
 
 const FILE_GLOB = "**/*.nats";
 
@@ -8,7 +9,10 @@ export class NatsCodeLensProvider implements vscode.CodeLensProvider {
   private readonly emitter = new vscode.EventEmitter<void>();
   readonly onDidChangeCodeLenses: vscode.Event<void> = this.emitter.event;
 
-  constructor(private readonly session: NatsSession) {}
+  constructor(
+    private readonly session: NatsSession,
+    private readonly variableStore: VariableStore,
+  ) {}
 
   dispose(): void {
     this.emitter.dispose();
@@ -21,7 +25,8 @@ export class NatsCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(
     document: vscode.TextDocument,
   ): vscode.ProviderResult<vscode.CodeLens[]> {
-    const actions = parseNatsDocument(document.getText());
+    const globalVariables = this.variableStore.getAllVariables();
+    const actions = parseNatsDocument(document.getText(), globalVariables);
     const codeLenses: vscode.CodeLens[] = [];
 
     for (const action of actions) {
@@ -105,9 +110,10 @@ export class NatsCodeLensProvider implements vscode.CodeLensProvider {
 
 export function registerCodeLensProvider(
   session: NatsSession,
+  variableStore: VariableStore,
   context: vscode.ExtensionContext,
 ): NatsCodeLensProvider {
-  const provider = new NatsCodeLensProvider(session);
+  const provider = new NatsCodeLensProvider(session, variableStore);
   context.subscriptions.push(
     provider,
     vscode.languages.registerCodeLensProvider({ pattern: FILE_GLOB }, provider),

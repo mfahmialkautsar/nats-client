@@ -113,8 +113,8 @@
     "variables": {
       "patterns": [
         {
-          "name": "variable.other.nats",
-          "match": "\\$[a-zA-Z_][a-zA-Z0-9_.]*"
+          "name": "variable.parameter.nats",
+          "match": "\\{\\{[^}]+\\}\\}"
         }
       ]
     },

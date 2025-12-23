@@ -53,6 +53,12 @@ export class VariableStore {
       .sort((a, b) => a.key.localeCompare(b.key));
   }
 
+  getAllVariables(
+    environment = this.activeEnvironment,
+  ): Record<string, string> {
+    return { ...(this.state.environments[environment] ?? {}) };
+  }
+
   get(name: string, environment = this.activeEnvironment): string | undefined {
     return this.state.environments[environment]?.[name];
   }

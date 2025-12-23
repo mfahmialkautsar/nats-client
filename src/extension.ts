@@ -8,11 +8,12 @@ import { OutputChannelRegistry } from "@/services/output-channel-registry";
 import { createVsCodeChannelFactory } from "@/platform/vscode/output-channel-factory";
 import { StatusBarController } from "@/platform/vscode/status-bar-controller";
 import { registerVariableTree } from "@/platform/vscode/variable-tree-provider";
+import { VariableCompletionProvider } from "@/features/completion/variable-completion-provider";
+import { VariableHoverProvider } from "@/features/hover/variable-hover-provider";
 import { VariableStore } from "@/services/variable-store";
 import { readSettings } from "@/services/configuration";
 import { registerCommand } from "@/commands/registry";
 import { CommandContext } from "@/commands/context";
-import { resolveAction, resolveServer } from "@/commands/utils";
 
 import * as subscribeCmd from "@/commands/subscribe";
 import * as publishCmd from "@/commands/publish";
@@ -34,10 +35,31 @@ export async function activate(context: vscode.ExtensionContext) {
     "NATS",
   );
   statusBar = new StatusBarController();
-  const codeLensProvider = registerCodeLensProvider(session, context);
   const variableStore = new VariableStore(context.workspaceState);
+  const codeLensProvider = registerCodeLensProvider(
+    session,
+    variableStore,
+    context,
+  );
   registerVariableTree(context, variableStore);
+
   registerFormattingProvider(context);
+
+  const variableCompletionProvider = new VariableCompletionProvider(
+    variableStore,
+  );
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      "nats",
+      variableCompletionProvider,
+      "{",
+    ),
+  );
+
+  const variableHoverProvider = new VariableHoverProvider(variableStore);
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider("nats", variableHoverProvider),
+  );
 
   context.subscriptions.push(
     new vscode.Disposable(() => channelRegistry.disposeAll()),
@@ -130,10 +152,10 @@ export async function activate(context: vscode.ExtensionContext) {
     resolveText: (value) => variableStore.resolveText(value),
     resolveServer: (value) => resolveServer(value, variableStore),
     register: (command, callback) =>
-      registerCommand(
-        context,
+  registerCommand(
+    context,
         command,
-        channelRegistry,
+    channelRegistry,
         async (...args: any[]) => {
           await Promise.resolve(callback(...args));
           statusBar.updateConnectionCount(session.connectionCount());

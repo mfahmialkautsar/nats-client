@@ -29,21 +29,54 @@ export type NatsDocumentSegment =
   | { kind: "delimiter"; line: RawLine }
   | { kind: "block"; lines: RawLine[] };
 
-export function parseNatsDocument(text: string): NatsAction[] {
+export function parseNatsDocument(
+  text: string,
+  globalVariables: Record<string, string> = {},
+): NatsAction[] {
   const segments = segmentNatsDocument(text);
   const actions: NatsAction[] = [];
+  const localVariables: Record<string, string> = {};
 
   for (const segment of segments) {
     if (segment.kind !== "block") {
       continue;
     }
-    const action = parseActionFromBlock(segment.lines);
+
+    // First pass: collect local variables
+    for (const line of segment.lines) {
+      const trimmed = line.text.trim();
+      if (trimmed.startsWith("@")) {
+        const parts = trimmed.split("=");
+        if (parts.length === 2) {
+          const key = parts[0].trim().substring(1); // Remove @
+          const value = parts[1].trim();
+          localVariables[key] = value;
+        }
+      }
+    }
+
+    const mergedVariables = { ...globalVariables, ...localVariables };
+    const action = parseActionFromBlock(segment.lines, mergedVariables);
     if (action) {
       actions.push(action);
     }
   }
 
   return actions;
+}
+
+function resolveVariables(
+  text: string,
+  variables: Record<string, string>,
+): string {
+  return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+    const trimmedKey = key.trim();
+    if (trimmedKey.startsWith("env:")) {
+      const envName = trimmedKey.slice(4);
+      return process.env[envName] ?? match;
+    }
+    return variables[trimmedKey] ?? match;
+  });
 }
 
 export function findActionNearestLine(
@@ -90,7 +123,10 @@ export function segmentNatsDocument(text: string): NatsDocumentSegment[] {
   return segments;
 }
 
-function parseActionFromBlock(lines: RawLine[]): NatsAction | undefined {
+function parseActionFromBlock(
+  lines: RawLine[],
+  variables: Record<string, string>,
+): NatsAction | undefined {
   if (lines.length === 0) {
     return undefined;
   }
@@ -100,7 +136,9 @@ function parseActionFromBlock(lines: RawLine[]): NatsAction | undefined {
     return undefined;
   }
 
-  const requestLine = lines[requestIndex].text.trim();
+  const rawRequestLine = lines[requestIndex].text.trim();
+  const requestLine = resolveVariables(rawRequestLine, variables);
+
   const [keyword] = requestLine.split(/\s+/, 1);
   const type = mapKeyword(keyword);
   if (!type) {
@@ -108,9 +146,9 @@ function parseActionFromBlock(lines: RawLine[]): NatsAction | undefined {
   }
 
   const target = requestLine.slice(keyword.length).trim();
-  const headerResult = parseHeaders(lines, requestIndex + 1);
+  const headerResult = parseHeaders(lines, requestIndex + 1, variables);
   const { headers, meta } = partitionHeaders(headerResult.headers);
-  const body = collectBody(lines, headerResult.nextIndex);
+  const body = collectBody(lines, headerResult.nextIndex, variables);
   const connection = resolveConnection(target, meta);
   if (!connection) {
     return undefined;
@@ -132,7 +170,7 @@ function parseActionFromBlock(lines: RawLine[]): NatsAction | undefined {
       batchSize: Math.max(1, batchCandidate),
       timeoutMs: timeoutMs,
       headers: headers,
-    };
+      };
   }
 
   if (!connection.subject) {
@@ -187,6 +225,7 @@ function findRequestLineIndex(lines: RawLine[]): number {
 function parseHeaders(
   lines: RawLine[],
   startIndex: number,
+  variables: Record<string, string>,
 ): { headers: HeaderEntry[]; nextIndex: number } {
   const headers: HeaderEntry[] = [];
   let index = startIndex;
@@ -210,13 +249,18 @@ function parseHeaders(
       break;
     }
     const value = raw.slice(separator + 1).trim();
-    headers.push({ key, value: sanitizeRandomIds(value) });
+    const resolvedValue = resolveVariables(value, variables);
+    headers.push({ key, value: sanitizeRandomIds(resolvedValue) });
     index += 1;
   }
   return { headers, nextIndex: index };
 }
 
-function collectBody(lines: RawLine[], startIndex: number): string | undefined {
+function collectBody(
+  lines: RawLine[],
+  startIndex: number,
+  variables: Record<string, string>,
+): string | undefined {
   if (startIndex >= lines.length) {
     return undefined;
   }
@@ -233,7 +277,7 @@ function collectBody(lines: RawLine[], startIndex: number): string | undefined {
   if (bodyLines.length === 0) {
     return undefined;
   }
-  return sanitizeRandomIds(bodyLines.join("\n"));
+  return sanitizeRandomIds(resolveVariables(bodyLines.join("\n"), variables));
 }
 
 function resolveConnection(

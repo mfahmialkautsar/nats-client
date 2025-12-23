@@ -6,15 +6,20 @@ import {
 import { NatsAction, NatsActionType } from "@/core/nats-actions";
 import { VariableStore } from "@/services/variable-store";
 
+import { CommandContext } from "./context";
+import { readSettings } from "@/services/configuration";
+
 export async function resolveAction(
   filePath: string,
   line: number,
   type: NatsActionType,
+  variableStore?: VariableStore,
 ): Promise<NatsAction | undefined> {
   const document = await vscode.workspace.openTextDocument(
     vscode.Uri.file(filePath),
   );
-  const actions = parseNatsDocument(document.getText());
+  const globalVariables = variableStore?.getAllVariables() ?? {};
+  const actions = parseNatsDocument(document.getText(), globalVariables);
   return findActionNearestLine(actions, line - 1, type);
 }
 
