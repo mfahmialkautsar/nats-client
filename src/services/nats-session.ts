@@ -15,6 +15,7 @@ import {
   NatsConnector,
   SubscriptionLike,
 } from "@/services/nats-types";
+import { EventEmitter } from "vscode";
 
 interface SubscriptionContext {
   subject: string;
@@ -44,6 +45,9 @@ export class NatsSession {
   private readonly replies = new Map<string, SubscriptionContext>();
   private readonly subscriptionCounts = new Map<string, number>();
   private readonly replyCounts = new Map<string, number>();
+
+  private readonly _onDidChangeConnection = new EventEmitter<void>();
+  public readonly onDidChangeConnection = this._onDidChangeConnection.event;
 
   constructor(
     private readonly connector: NatsConnector,
@@ -97,7 +101,7 @@ export class NatsSession {
       headers,
     });
     const responseString = safeStringResponse(response);
-    const meta = { timestamp, connection: prefix, subject };
+    const meta = { timestamp, connection: prefix, subject, type: "Request" };
     const items: LogItem[] = [
       { title: "Request", body: payload, headers },
       {
@@ -120,8 +124,8 @@ export class NatsSession {
     const prefix = this.connectionInfo(connection.connection);
     connection.connection.publish(subject, payload, { headers });
     await connection.connection.flush();
-    const meta = { timestamp, connection: prefix, subject };
-    const items: LogItem[] = [{ title: "Published", body: payload, headers }];
+    const meta = { timestamp, connection: prefix, subject, type: "Publish" };
+    const items: LogItem[] = [{ title: "Publish", body: payload, headers }];
     return { meta, items };
   }
 
@@ -243,7 +247,7 @@ export class NatsSession {
               durable,
             };
             appendLogBlock(
-              sink,
+      sink,
               {
                 meta: metaErr,
                 items: [{ title: "Ack error", body: this.formatError(error) }],
@@ -324,6 +328,7 @@ export class NatsSession {
     const connection = this.connections.get(serverKey);
     if (connection) {
       connection.markedClosed = true;
+      this._onDidChangeConnection.fire();
     }
   }
 
@@ -453,6 +458,7 @@ export class NatsSession {
       markedClosed: false,
     };
     this.connections.set(serverKey, managed);
+    this._onDidChangeConnection.fire();
     return managed;
   }
 
@@ -465,7 +471,7 @@ export class NatsSession {
     if (!context) {
       return;
     }
-    context.subscription.unsubscribe();
+      context.subscription.unsubscribe();
     store.delete(key);
     this.decrementCount(counts, context.server, context.subject);
   }
