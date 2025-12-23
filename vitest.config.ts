@@ -10,6 +10,7 @@ export default defineConfig({
     alias: {
       "@": resolveFromRoot("src"),
       "@tests": resolveFromRoot("tests"),
+      vscode: resolveFromRoot("tests/__mocks__/vscode.ts"),
     },
   },
   test: {

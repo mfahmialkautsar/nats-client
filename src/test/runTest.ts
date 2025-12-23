@@ -3,7 +3,7 @@ import { runTests } from "@vscode/test-electron";
 
 async function main(): Promise<void> {
   try {
-    const extensionDevelopmentPath = path.resolve(__dirname, "../..");
+    const extensionDevelopmentPath = path.resolve(__dirname, "../../..");
     const extensionTestsPath = path.resolve(__dirname, "./suite/index");
     const workspacePath = path.resolve(extensionDevelopmentPath, "examples");
     await runTests({

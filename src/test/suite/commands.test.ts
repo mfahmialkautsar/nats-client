@@ -95,12 +95,16 @@ suite("NATS Client VS Code integration", () => {
   });
 
   test("formats .nats documents via registered provider", async () => {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    assert.ok(workspaceFolder, "Workspace folder was not opened");
-    const docUri = vscode.Uri.file(
-      path.join(workspaceFolder.uri.fsPath, "pub-sub.nats"),
+    const document = await vscode.workspace.openTextDocument(
+      vscode.Uri.parse("untitled:test.nats"),
     );
-    const document = await vscode.workspace.openTextDocument(docUri);
+    const editor = await vscode.window.showTextDocument(document);
+    await editor.edit((edit) => {
+      edit.insert(
+        new vscode.Position(0, 0),
+        'PUBLISH subject\n{\n"foo":"bar"\n}',
+      );
+    });
     const edits = await vscode.commands.executeCommand<vscode.TextEdit[]>(
       "vscode.executeFormatDocumentProvider",
       document.uri,
