@@ -136,11 +136,6 @@
           "default": 15000,
           "minimum": 1000,
           "description": "Default timeout in milliseconds for request/response operations and JetStream pulls when NATS-Timeout is not specified."
-        },
-        "natsClient.autoRevealOutput": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically reveal the main output channel after requests or publishes."
         }
       }
     },

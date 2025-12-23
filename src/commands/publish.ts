@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { CommandContext } from "./context";
 import { resolveAction, resolveServer, revealChannel } from "./utils";
-import { readSettings } from "@/services/configuration";
 import { appendLogBlock } from "@/services/log-sink";
 
 export async function publish(
@@ -24,7 +23,6 @@ export async function publish(
   const subject = ctx.variableStore.resolveText(action.subject);
   const payload = ctx.variableStore.resolveOptional(action.data) ?? "";
   const headers = ctx.variableStore.resolveRecord(action.headers);
-  const settings = readSettings();
 
   const result = await vscode.window.withProgress(
     {

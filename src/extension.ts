@@ -11,7 +11,6 @@ import { registerVariableTree } from "@/platform/vscode/variable-tree-provider";
 import { VariableCompletionProvider } from "@/features/completion/variable-completion-provider";
 import { VariableHoverProvider } from "@/features/hover/variable-hover-provider";
 import { VariableStore } from "@/services/variable-store";
-import { readSettings } from "@/services/configuration";
 import { registerCommand } from "@/commands/registry";
 import { CommandContext } from "@/commands/context";
 
@@ -74,8 +73,6 @@ export async function activate(context: vscode.ExtensionContext) {
     statusBar,
     codeLensProvider,
   };
-
-  const settings = readSettings();
 
   registerCommand(context, "nats.showOutput", channelRegistry, () =>
     showOutputCmd.showOutput(ctx),

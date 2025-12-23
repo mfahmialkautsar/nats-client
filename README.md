@@ -66,7 +66,6 @@ The extension contributes the following entry points:
 | Setting                       | Default | Description                                                                              |
 | ----------------------------- | ------- | ---------------------------------------------------------------------------------------- |
 | `natsClient.requestTimeoutMs` | `15000` | Fallback timeout for `REQUEST` and JetStream pull actions when `NATS-Timeout` is absent. |
-| `natsClient.autoRevealOutput` | `false` | Automatically reveals the main output channel after every publish or request.            |
 
 ## Development workflow
 

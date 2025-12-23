@@ -7,7 +7,6 @@ import { NatsAction, NatsActionType } from "@/core/nats-actions";
 import { VariableStore } from "@/services/variable-store";
 
 import { CommandContext } from "./context";
-import { readSettings } from "@/services/configuration";
 
 export async function resolveAction(
   filePath: string,
@@ -35,10 +34,6 @@ export function resolveServer(
 }
 
 export function revealChannel(ctx: CommandContext, channel: any) {
-  const settings = readSettings();
-  if (!settings.autoRevealOutput) {
-    return;
-  }
   const main = ctx.channelRegistry.main();
   if (channel !== main) {
     channel.show(true);
