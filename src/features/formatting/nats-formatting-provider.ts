@@ -104,17 +104,6 @@ export class NatsFormatter {
       preserveLeadingBlankCount += 1;
       scanIndex += 1;
     }
-    // const firstNonEmpty =
-    //   scanIndex < lines.length ? lines[scanIndex].text.trim() : "";
-    // const followedByHeader =
-    //   firstNonEmpty.length > 0 &&
-    //   (COMMENT_PATTERN.test(firstNonEmpty) ||
-    //     HEADER_KEY_PATTERN.test(firstNonEmpty.split(":", 1)[0] ?? ""));
-    // if (!followedByHeader) {
-    //   // We'll preserve blank lines for non-header body cases. To ensure the
-    //   // header-extraction logic doesn't swallow them, call extractHeaders as
-    //   // normal and we'll re-add blanks afterward if necessary.
-    // }
 
     const { headerLines, nextIndex } = this.extractHeaders(lines, scanIndex);
     const bodyLines = this.formatBody(lines.slice(nextIndex));

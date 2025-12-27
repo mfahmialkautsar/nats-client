@@ -146,11 +146,6 @@ class VariableTreeProvider
     );
     item.description = element.value;
     item.contextValue = "natsVariable";
-    item.command = {
-      command: "nats.variables.view.copyValue",
-      title: "Copy Variable Value",
-      arguments: [element],
-    };
     return item;
   }
 
