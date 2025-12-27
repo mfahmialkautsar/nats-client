@@ -6,22 +6,28 @@
       "include": "#comments"
     },
     {
+      "include": "#variables"
+    },
+    {
+      "include": "#separators"
+    },
+    {
+      "include": "#variable-definitions"
+    },
+    {
       "include": "#keywords"
+    },
+    {
+      "include": "#headers"
     },
     {
       "include": "#subjects"
     },
     {
-      "include": "#strings"
-    },
-    {
       "include": "#json-blocks"
     },
     {
-      "include": "#variables"
-    },
-    {
-      "include": "#separators"
+      "include": "#invalid-commands"
     }
   ],
   "repository": {
@@ -29,11 +35,54 @@
       "patterns": [
         {
           "name": "comment.line.number-sign.nats",
-          "match": "#.*$"
+          "match": "^\\s*#.*$"
         },
         {
           "name": "comment.line.double-slash.nats",
-          "match": "//.*$"
+          "match": "^\\s*//.*$"
+        }
+      ]
+    },
+    "variable-definitions": {
+      "patterns": [
+        {
+          "match": "^\\s*(@)([^=]+)(=)(.*)$",
+          "captures": {
+            "1": { "name": "keyword.operator.nats" },
+            "2": { "name": "variable.other.nats" },
+            "3": { "name": "keyword.operator.nats" },
+            "4": {
+              "patterns": [
+                { "include": "#variables" },
+                { "name": "string.unquoted.nats", "match": ".+" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "headers": {
+      "patterns": [
+        {
+          "match": "^\\s*([A-Za-z0-9-]+)(:)\\s*(.*)$",
+          "captures": {
+            "1": { "name": "keyword.other.header.nats" },
+            "2": { "name": "punctuation.separator.key-value.nats" },
+            "3": {
+              "patterns": [
+                { "include": "#variables" },
+                { "name": "string.unquoted.nats", "match": ".+" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "invalid-commands": {
+      "patterns": [
+        {
+          "match": "^\\s*(?!(REPLY|REQUEST|SUBSCRIBE|PUBLISH|JETSTREAM)\\b)[A-Z]{2,}\\b.*$",
+          "name": "invalid.illegal.nats"
         }
       ]
     },
@@ -48,8 +97,11 @@
     "subjects": {
       "patterns": [
         {
-          "name": "entity.name.function.nats",
-          "match": "\\b[a-zA-Z_][a-zA-Z0-9_.]*\\b(?=\\s|$)"
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_.]*\\b(?=\\s|$)",
+          "patterns": [
+            { "include": "#variables" },
+            { "name": "entity.name.function.nats", "match": ".+" }
+          ]
         }
       ]
     },
@@ -80,6 +132,9 @@
     "string-interpolation": {
       "patterns": [
         {
+          "include": "#variables"
+        },
+        {
           "name": "variable.other.nats",
           "match": "\\$[a-zA-Z_][a-zA-Z0-9_.]*"
         },
@@ -104,6 +159,15 @@
           "end": "\\}",
           "patterns": [
             {
+              "include": "#variables"
+            },
+            {
+              "match": "\"[^\"]*(\\{\\{[^}]+\\}\\})[^\"]*\"",
+              "captures": {
+                "1": { "name": "variable.other.nats" }
+              }
+            },
+            {
               "include": "source.json"
             }
           ]
@@ -113,7 +177,7 @@
     "variables": {
       "patterns": [
         {
-          "name": "variable.parameter.nats",
+          "name": "variable.other.nats",
           "match": "\\{\\{[^}]+\\}\\}"
         }
       ]
