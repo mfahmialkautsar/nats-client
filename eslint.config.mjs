@@ -42,6 +42,25 @@ export default [
       semi: "warn",
       "@typescript-eslint/no-deprecated": "error",
       "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        {
+          prefer: "type-imports",
+        },
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["../*"],
+              message:
+                "Usage of relative imports is not allowed. Use aliases instead.",
+            },
+          ],
+        },
+      ],
       "no-unused-vars": "warn",
     },
   },
