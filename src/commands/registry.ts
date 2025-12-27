@@ -29,17 +29,16 @@ function reportError(
   const errorMsg = error instanceof Error ? error.message : String(error);
   const stack = error instanceof Error ? error.stack : undefined;
 
-  vscode.window.showErrorMessage(`${message}: ${errorMsg}`);
-
   const channel = channelRegistry.main();
-  const meta = { timestamp: new Date().toISOString() };
-  const items = [
-    { title: "ERROR", body: message },
-    { title: "Message", body: errorMsg },
-  ];
-  if (stack) {
-    items.push({ title: "Stack trace", body: stack });
-  }
-  appendLogBlock(channel, { meta, items }, "");
+  appendLogBlock(channel, {
+    meta: { timestamp: new Date().toISOString() },
+    items: [
+      { title: message, body: errorMsg },
+      ...(stack ? [{ title: "Stack Trace", body: stack }] : []),
+    ],
+  });
+  channel.show(true);
+
+  vscode.window.showErrorMessage(`${message}: ${errorMsg}`);
   console.error(message, error);
 }
