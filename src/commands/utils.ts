@@ -35,7 +35,11 @@ export function resolveServer(
   return resolved.trim().length > 0 ? resolved : undefined;
 }
 
-export function revealIfNew(ctx: CommandContext, channel: any, isNew: boolean) {
+export function revealIfNew(
+  ctx: CommandContext,
+  channel: OutputChannelLike,
+  isNew: boolean,
+) {
   if (isNew) {
     channel.show(true);
   }
