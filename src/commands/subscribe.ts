@@ -1,7 +1,13 @@
 import * as vscode from "vscode";
 import { CommandContext } from "./context";
-import { resolveAction, resolveServer, revealChannel } from "./utils";
+import {
+  handleError,
+  resolveAction,
+  resolveServer,
+  revealIfNew,
+} from "./utils";
 import { buildKey } from "@/features/code-lens/nats-code-lens-provider";
+import { CompositeLogSink } from "@/services/log-sink";
 
 export async function startSubscription(
   ctx: CommandContext,
@@ -22,15 +28,17 @@ export async function startSubscription(
   }
   const subject = ctx.variableStore.resolveText(action.subject);
   const key = buildKey(filePath, line);
-  const channel = ctx.channelRegistry.acquire(subject, key);
+  const { channel, isNew } = ctx.channelRegistry.acquire(subject, key);
   try {
-    await ctx.session.startSubscription(server, subject, channel, key);
-    revealChannel(ctx, channel);
+    const main = ctx.channelRegistry.main();
+    const sink = new CompositeLogSink([main, channel]);
+    await ctx.session.startSubscription(server, subject, sink, key);
+    revealIfNew(ctx, channel, isNew);
     vscode.window.showInformationMessage(`Subscription started on ${subject}`);
     ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
   } catch (error) {
     ctx.channelRegistry.release(key);
-    throw error;
+    handleError(ctx, error, "Subscription failed", server, subject);
   }
   ctx.codeLensProvider.refresh();
 }
@@ -40,9 +48,13 @@ export async function stopSubscription(
   filePath: string,
   line: number,
 ) {
-  const key = buildKey(filePath, line);
-  ctx.session.stopSubscription(key);
-  ctx.channelRegistry.release(key);
-  vscode.window.showInformationMessage("Subscription stopped");
-  ctx.codeLensProvider.refresh();
+  try {
+    const key = buildKey(filePath, line);
+    ctx.session.stopSubscription(key);
+    ctx.channelRegistry.release(key);
+    vscode.window.showInformationMessage("Subscription stopped");
+    ctx.codeLensProvider.refresh();
+  } catch (error) {
+    handleError(ctx, error, "Stop subscription failed");
+  }
 }

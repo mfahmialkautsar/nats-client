@@ -1,7 +1,13 @@
 import * as vscode from "vscode";
 import { CommandContext } from "./context";
-import { resolveAction, resolveServer, revealChannel } from "./utils";
+import {
+  handleError,
+  resolveAction,
+  resolveServer,
+  revealIfNew,
+} from "./utils";
 import { buildKey } from "@/features/code-lens/nats-code-lens-provider";
+import { CompositeLogSink } from "@/services/log-sink";
 
 export async function startReplyHandler(
   ctx: CommandContext,
@@ -29,27 +35,32 @@ export async function startReplyHandler(
   const key = buildKey(filePath, line);
   const subject = ctx.variableStore.resolveText(action.subject);
   const headers = ctx.variableStore.resolveRecord(action.headers);
-  const channel = ctx.channelRegistry.acquire(`Reply:${subject}`, key);
+  const { channel, isNew } = ctx.channelRegistry.acquire(
+    `Reply:${subject}`,
+    key,
+  );
   try {
     const template = ctx.variableStore.resolveOptional(action.template);
     const payload = ctx.variableStore.resolveOptional(action.data);
+    const main = ctx.channelRegistry.main();
+    const sink = new CompositeLogSink([main, channel]);
     await ctx.session.startReplyHandler(
       server,
       subject,
       template,
       payload,
-      channel,
+      sink,
       key,
       headers,
     );
-    revealChannel(ctx, channel);
+    revealIfNew(ctx, channel, isNew);
     vscode.window.showInformationMessage(
       `Reply handler started for ${subject}`,
     );
     ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
   } catch (error) {
     ctx.channelRegistry.release(key);
-    throw error;
+    handleError(ctx, error, "Reply handler failed", server, subject);
   }
   ctx.codeLensProvider.refresh();
 }
@@ -59,9 +70,13 @@ export function stopReplyHandler(
   filePath: string,
   line: number,
 ) {
-  const key = buildKey(filePath, line);
-  ctx.session.stopReplyHandler(key);
-  ctx.channelRegistry.release(key);
-  vscode.window.showInformationMessage("Reply handler stopped");
-  ctx.codeLensProvider.refresh();
+  try {
+    const key = buildKey(filePath, line);
+    ctx.session.stopReplyHandler(key);
+    ctx.channelRegistry.release(key);
+    vscode.window.showInformationMessage("Reply handler stopped");
+    ctx.codeLensProvider.refresh();
+  } catch (error) {
+    handleError(ctx, error, "Stop reply handler failed");
+  }
 }
