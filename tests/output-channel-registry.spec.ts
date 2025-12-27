@@ -41,13 +41,13 @@ describe("OutputChannelRegistry", () => {
       (label) => new StubChannel(label),
       "NATS",
     );
-    const first = registry.acquire("lab.metrics", "key-1") as StubChannel;
-    const second = registry.acquire("lab.metrics", "key-2") as StubChannel;
+    const { channel: first } = registry.acquire("lab.metrics", "key-1");
+    const { channel: second } = registry.acquire("lab.metrics", "key-2");
     expect(first).toBe(second);
     registry.release("key-1");
-    expect(first.disposed).toBe(false);
+    expect((first as StubChannel).disposed).toBe(false);
     registry.release("key-2");
-    expect(first.disposed).toBe(true);
+    expect((first as StubChannel).disposed).toBe(true);
   });
 
   it("disposes everything on disposeAll", () => {
@@ -55,7 +55,7 @@ describe("OutputChannelRegistry", () => {
       (label) => new StubChannel(label),
       "NATS",
     );
-    const subjectChannel = registry.acquire("lab.alerts", "key");
+    const { channel: subjectChannel } = registry.acquire("lab.alerts", "key");
     const mainChannel = registry.main();
     registry.disposeAll();
     expect((subjectChannel as StubChannel).disposed).toBe(true);
