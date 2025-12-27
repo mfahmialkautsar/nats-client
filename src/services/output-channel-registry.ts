@@ -10,6 +10,7 @@ export type OutputChannelFactory = (label: string) => OutputChannelLike;
 interface SubjectEntry {
   channel: OutputChannelLike;
   refCount: number;
+  pinned?: boolean;
 }
 
 export class OutputChannelRegistry {
@@ -29,18 +30,40 @@ export class OutputChannelRegistry {
     return this.mainChannel;
   }
 
-  acquire(subject: string, key: string): OutputChannelLike {
+  acquire(
+    subject: string,
+    key: string,
+  ): { channel: OutputChannelLike; isNew: boolean } {
     let entry = this.subjects.get(subject);
+    let isNew = false;
     if (!entry) {
       entry = {
         channel: this.factory(`${this.mainLabel} - ${subject}`),
         refCount: 0,
       };
       this.subjects.set(subject, entry);
+      isNew = true;
     }
     entry.refCount += 1;
     this.keyToSubject.set(key, subject);
-    return entry.channel;
+    return { channel: entry.channel, isNew };
+  }
+
+  getOrCreate(subject: string): { channel: OutputChannelLike; isNew: boolean } {
+    let entry = this.subjects.get(subject);
+    let isNew = false;
+    if (!entry) {
+      entry = {
+        channel: this.factory(`${this.mainLabel} - ${subject}`),
+        refCount: 0,
+        pinned: true,
+      };
+      this.subjects.set(subject, entry);
+      isNew = true;
+    } else {
+      entry.pinned = true;
+    }
+    return { channel: entry.channel, isNew };
   }
 
   release(key: string): void {
@@ -54,7 +77,7 @@ export class OutputChannelRegistry {
       return;
     }
     entry.refCount -= 1;
-    if (entry.refCount <= 0) {
+    if (entry.refCount <= 0 && !entry.pinned) {
       entry.channel.dispose();
       this.subjects.delete(subject);
     }
