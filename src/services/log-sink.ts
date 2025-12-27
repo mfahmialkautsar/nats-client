@@ -60,3 +60,13 @@ export function appendLogBlock(
 
   sink.appendLine("");
 }
+
+export class CompositeLogSink implements LogSink {
+  constructor(private readonly sinks: LogSink[]) {}
+
+  appendLine(value: string): void {
+    for (const sink of this.sinks) {
+      sink.appendLine(value);
+    }
+  }
+}
