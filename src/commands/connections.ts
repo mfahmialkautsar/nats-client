@@ -126,12 +126,12 @@ export async function connectionsMenu(ctx: CommandContext) {
         `Stop reply handler for ${reply.subject}?`,
         { modal: true },
         "Stop",
-      );
+        );
       if (confirm === "Stop") {
         ctx.session.stopReplyHandler(key);
         ctx.channelRegistry.release(key);
         ctx.codeLensProvider.refresh();
-        ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
+          ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
         vscode.window.showInformationMessage(
           `Stopped reply handler for ${reply.subject}`,
         );
