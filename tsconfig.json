@@ -9,7 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "lib": ["ES2022"],
+    "lib": ["ES2024"],
     "types": ["node", "vscode"],
     "baseUrl": ".",
     "paths": {
