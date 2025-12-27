@@ -1,18 +1,18 @@
 import * as vscode from "vscode";
-import { OutputChannelRegistry } from "@/services/output-channel-registry";
+import type { OutputChannelRegistry } from "@/services/output-channel-registry";
 import { appendLogBlock } from "@/services/log-sink";
 
-export function registerCommand(
+export function registerCommand<A extends unknown[]>(
   context: vscode.ExtensionContext,
   command: string,
   channelRegistry: OutputChannelRegistry,
-  callback: (...args: any[]) => Thenable<void> | void,
+  callback: (...args: A) => Thenable<void> | void,
 ): void {
   const disposable = vscode.commands.registerCommand(
     command,
-    async (...args: any[]) => {
+    async (...args: unknown[]) => {
       try {
-        await Promise.resolve(callback(...args));
+        await Promise.resolve(callback(...(args as A)));
       } catch (error) {
         reportError(channelRegistry, error, `Command ${command} failed`);
       }
