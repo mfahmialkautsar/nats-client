@@ -20,7 +20,7 @@ describe("appendLogBlock", () => {
         { title: "Reply", body: "ok" },
       ],
     };
-    appendLogBlock(sink, block as any, "");
+    appendLogBlock(sink, block, "");
     expect(sink.lines[0]).toBe("2025-11-16T00:00:00Z");
     expect(sink.lines[1]).toBe("Meta:");
     expect(sink.lines[2]).toBe("  connection: [id@host:4222]");

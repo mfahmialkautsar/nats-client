@@ -1,6 +1,7 @@
 import { TextEncoder } from "node:util";
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { GenericContainer, StartedTestContainer } from "testcontainers";
+import type { StartedTestContainer } from "testcontainers";
+import { GenericContainer } from "testcontainers";
 import {
   AckPolicy,
   DeliverPolicy,

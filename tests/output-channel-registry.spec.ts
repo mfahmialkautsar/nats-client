@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  OutputChannelLike,
-  OutputChannelRegistry,
-} from "@/services/output-channel-registry";
+import { OutputChannelRegistry } from "@/services/output-channel-registry";
+import type { OutputChannelLike } from "@/services/output-channel-registry";
 
 class StubChannel implements OutputChannelLike {
   readonly label: string;

@@ -2,7 +2,7 @@ import { TextDecoder, TextEncoder } from "node:util";
 import type { JetStreamClient } from "nats";
 import { describe, expect, it, vi } from "vitest";
 import { NatsSession, interpolateTemplate } from "@/services/nats-session";
-import {
+import type {
   HeadersLike,
   MsgLike,
   NatsConnectOptions,
@@ -167,12 +167,12 @@ describe("NatsSession", () => {
     expect(log.meta?.subject).toBe("lab.metrics");
     expect(
       log.items.some(
-        (it) => it.title === "Publish" && it.body === '{"value":1}',
+        (it) => it.title === "Published" && it.body === '{"value":1}',
       ),
     ).toBe(true);
     expect(
       log.items.some(
-        (it) => it.title === "Publish" && it.headers?.["Trace-Id"] === "123",
+        (it) => it.title === "Published" && it.headers?.["Trace-Id"] === "123",
       ),
     ).toBe(true);
     await session.reset();

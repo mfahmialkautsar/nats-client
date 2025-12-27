@@ -1,13 +1,13 @@
-export class EventEmitter {
-  private listeners: ((e: any) => any)[] = [];
-  event = (listener: (e: any) => any) => {
+export class EventEmitter<T = unknown> {
+  private listeners: ((e: T) => unknown)[] = [];
+  event = (listener: (e: T) => unknown) => {
     this.listeners.push(listener);
     return {
       dispose: () =>
         (this.listeners = this.listeners.filter((l) => l !== listener)),
     };
   };
-  fire(data: any) {
+  fire(data: T) {
     this.listeners.forEach((l) => l(data));
   }
 }

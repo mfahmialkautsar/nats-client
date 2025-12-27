@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { GenericContainer, StartedTestContainer } from "testcontainers";
+import type { StartedTestContainer } from "testcontainers";
+import { GenericContainer } from "testcontainers";
 import { StringCodec, connect, headers as createHeaders } from "nats";
 import { NatsSession } from "@/services/nats-session";
 import { createDefaultConnector } from "@/services/nats-connector";
@@ -94,6 +95,7 @@ describe("NatsSession connection resilience e2e", () => {
 
     // Phase 3: Verify subscription automatically receives messages (no manual restart needed)
     subSink.lines = [];
+    await new Promise((resolve) => setTimeout(resolve, 500)); // Give time for subscription to propagate
     helperConnection!.publish(
       "e2e.resilience.sub",
       codec.encode("test-after-auto-restart"),

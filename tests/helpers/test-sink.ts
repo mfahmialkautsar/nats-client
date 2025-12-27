@@ -1,4 +1,4 @@
-import { LogSink } from "@/services/log-sink";
+import type { LogSink } from "@/services/log-sink";
 
 export class TestSink implements LogSink {
   lines: string[] = [];

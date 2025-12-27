@@ -1,6 +1,14 @@
-import { describe, expect, it, beforeAll, afterAll, vi } from "vitest";
-import { GenericContainer, StartedTestContainer } from "testcontainers";
-import { connect, StringCodec } from "nats";
+import {
+  describe,
+  expect,
+  it,
+  beforeAll,
+  afterAll,
+  vi,
+  type Mock,
+} from "vitest";
+import type { StartedTestContainer } from "testcontainers";
+import { GenericContainer } from "testcontainers";
 import { TestSink } from "@tests/helpers/test-sink";
 
 // Mock vscode module
@@ -32,8 +40,8 @@ const mockOpenTextDocument = async (content: string) => ({
   getText: () => content,
 });
 
-(vscode.workspace.openTextDocument as any).mockImplementation(
-  async (uri: any) => {
+(vscode.workspace.openTextDocument as unknown as Mock).mockImplementation(
+  async (uri: { path: string }) => {
     return mockOpenTextDocument(uri.path);
   },
 );
@@ -53,8 +61,8 @@ describe("Nats Files E2E", () => {
     session = new NatsSession(createDefaultConnector());
 
     // Mock Memento
-    const memento = {
-      get: () => undefined,
+    const memento: vscode.Memento = {
+      get: <T>(key: string, defaultValue?: T) => defaultValue,
       update: () => Promise.resolve(),
     };
 
@@ -64,7 +72,7 @@ describe("Nats Files E2E", () => {
       dispose: () => {},
     });
 
-    variableStore = new VariableStore(memento as any, emitterFactory);
+    variableStore = new VariableStore(memento, emitterFactory);
   }, 20_000);
 
   afterAll(async () => {
@@ -77,7 +85,7 @@ describe("Nats Files E2E", () => {
 @url = ${natsUrl}
 @subject = test.variable
 
-PUB {{url}}/{{subject}}
+PUBLISH {{url}}/{{subject}}
 Payload
 `;
     // We pass content as filePath because of our mock
@@ -113,7 +121,7 @@ Payload
     await variableStore!.set("global_subject", "test.global");
 
     const natsFileContent = `
-PUB {{global_url}}/{{global_subject}}
+PUBLISH {{global_url}}/{{global_subject}}
 Global Payload
 `;
     const action = await resolveAction(
@@ -146,7 +154,7 @@ Global Payload
 @header_val = my-header-value
 @body_val = my-body-value
 
-PUB {{url}}/test.content
+PUBLISH {{url}}/test.content
 X-Header: {{header_val}}
 
 Body: {{body_val}}
