@@ -1,6 +1,11 @@
 import * as vscode from "vscode";
 import { CommandContext } from "./context";
-import { resolveAction, resolveServer, revealChannel } from "./utils";
+import {
+  handleError,
+  resolveAction,
+  resolveServer,
+  revealIfNew,
+} from "./utils";
 import { appendLogBlock } from "@/services/log-sink";
 
 export async function publish(
@@ -24,7 +29,7 @@ export async function publish(
   const payload = ctx.variableStore.resolveOptional(action.data) ?? "";
   const headers = ctx.variableStore.resolveRecord(action.headers);
 
-  const result = await vscode.window.withProgress(
+  await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
       title: `Publishing to ${subject}...`,
@@ -39,34 +44,15 @@ export async function publish(
           headers,
         );
         const mainChannel = ctx.channelRegistry.main();
+        const { channel, isNew } = ctx.channelRegistry.getOrCreate(subject);
         appendLogBlock(mainChannel, result);
-        revealChannel(ctx, mainChannel);
+        appendLogBlock(channel, result);
+        revealIfNew(ctx, channel, isNew);
         ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
-        return { success: true, subject };
+        vscode.window.showInformationMessage(`Published to ${subject}`);
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        if (
-          errorMsg.includes("DISCONNECT") ||
-          errorMsg.includes("CONNECTION")
-        ) {
-          const connInfo = ctx.session
-            .listConnections()
-            .find((c) => c.url === server);
-          if (connInfo) {
-            ctx.session.markConnectionClosed(connInfo.server);
-          }
-        }
-        ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
-        return { success: false, subject, error: errorMsg };
+        handleError(ctx, error, "Publish failed", server, subject);
       }
     },
   );
-
-  if (result.success) {
-    vscode.window.showInformationMessage(`Published to ${result.subject}`);
-  } else {
-    vscode.window.showErrorMessage(
-      `Publish to ${result.subject} failed: ${result.error}`,
-    );
-  }
 }

@@ -1,6 +1,11 @@
 import * as vscode from "vscode";
 import { CommandContext } from "./context";
-import { resolveAction, resolveServer, revealChannel } from "./utils";
+import {
+  handleError,
+  resolveAction,
+  resolveServer,
+  revealIfNew,
+} from "./utils";
 import { readSettings } from "@/services/configuration";
 import { appendLogBlock } from "@/services/log-sink";
 
@@ -26,7 +31,7 @@ export async function sendRequest(
   const headers = ctx.variableStore.resolveRecord(action.headers);
   const settings = readSettings();
 
-  const result = await vscode.window.withProgress(
+  await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
       title: `Sending request to ${subject}...`,
@@ -42,34 +47,15 @@ export async function sendRequest(
           headers,
         );
         const mainChannel = ctx.channelRegistry.main();
+        const { channel, isNew } = ctx.channelRegistry.getOrCreate(subject);
         appendLogBlock(mainChannel, result);
-        revealChannel(ctx, mainChannel);
+        appendLogBlock(channel, result);
+        revealIfNew(ctx, channel, isNew);
         ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
-        return { success: true, subject };
+        vscode.window.showInformationMessage(`Request sent to ${subject}`);
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        if (
-          errorMsg.includes("DISCONNECT") ||
-          errorMsg.includes("CONNECTION")
-        ) {
-          const connInfo = ctx.session
-            .listConnections()
-            .find((c) => c.url === server);
-          if (connInfo) {
-            ctx.session.markConnectionClosed(connInfo.server);
-          }
-        }
-        ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
-        return { success: false, subject, error: errorMsg };
+        handleError(ctx, error, "Request failed", server, subject);
       }
     },
   );
-
-  if (result.success) {
-    vscode.window.showInformationMessage(`Request sent to ${result.subject}`);
-  } else {
-    vscode.window.showErrorMessage(
-      `Request to ${result.subject} failed: ${result.error}`,
-    );
-  }
 }
