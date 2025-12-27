@@ -103,7 +103,7 @@ export class NatsSession {
       {
         title: "Response",
         body: responseString,
-        headers: readMsgHeaders((response as any).headers),
+        headers: readMsgHeaders(response.headers),
       },
     ];
     return { meta, items };
@@ -121,7 +121,7 @@ export class NatsSession {
     connection.connection.publish(subject, payload, { headers });
     await connection.connection.flush();
     const meta = { timestamp, connection: prefix, subject, type: "Publish" };
-    const items: LogItem[] = [{ title: "Publish", body: payload, headers }];
+    const items: LogItem[] = [{ title: "Published", body: payload, headers }];
     return { meta, items };
   }
 
@@ -212,7 +212,7 @@ export class NatsSession {
         const meta = {
           timestamp,
           connection: prefix,
-          stream,
+      stream,
           durable,
         } as Record<string, string>;
         const items: LogItem[] = [
@@ -239,7 +239,7 @@ export class NatsSession {
             const metaErr = {
               timestamp: ts,
               connection: prefix,
-              stream,
+      stream,
               durable,
             };
             appendLogBlock(
@@ -394,12 +394,12 @@ export class NatsSession {
     this.connections.set(serverKey, managed);
 
     for (const sub of subsToReconnect) {
-      await this.startSubscription(
-        existing.rawUrl,
-        sub.subject,
-        sub.sink,
-        sub.key,
-      );
+        await this.startSubscription(
+          existing.rawUrl,
+          sub.subject,
+          sub.sink,
+          sub.key,
+        );
     }
 
     for (const reply of repliesToReconnect) {
@@ -554,7 +554,7 @@ export class NatsSession {
         {
           title: "Request",
           body: msg.string(),
-          headers: readMsgHeaders((msg as any).headers),
+          headers: readMsgHeaders(msg.headers),
         },
         { title: "Reply", body: response, headers: replyHeaders },
       ];
@@ -568,7 +568,7 @@ export class NatsSession {
         {
           title: "Request",
           body: msg.string(),
-          headers: readMsgHeaders((msg as any).headers),
+          headers: readMsgHeaders(msg.headers),
         },
         { title: "Reply", body: payload, headers: replyHeaders },
       ];
