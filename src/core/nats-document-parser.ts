@@ -1,9 +1,6 @@
 import { randomUUID } from "crypto";
-import {
-  NatsAction,
-  NatsActionType,
-  actionKeywords,
-} from "@/core/nats-actions";
+import type { NatsAction, NatsActionType } from "@/core/nats-actions";
+import { actionKeywords } from "@/core/nats-actions";
 
 const RANDOM_ID_PATTERN = /randomId\(\)/gi;
 const BLOCK_DELIMITER = /^\s*#{3,}.*$/;

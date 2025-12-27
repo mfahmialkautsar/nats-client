@@ -1,5 +1,5 @@
 import { headers as createHeaders, type MsgHdrs } from "nats";
-import { HeaderMap } from "@/services/nats-types";
+import type { HeaderMap } from "@/services/nats-types";
 
 export function buildMsgHeaders(map?: HeaderMap): MsgHdrs | undefined {
   if (!map || Object.keys(map).length === 0) {

@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { CommandContext } from "./context";
+import type { CommandContext } from "./context";
 import { handleError } from "./utils";
 
 export async function connectionsMenu(ctx: CommandContext) {

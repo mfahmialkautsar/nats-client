@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { VariableStore } from "@/services/variable-store";
+import type { VariableStore } from "@/services/variable-store";
 
 export function registerVariableTree(
   context: vscode.ExtensionContext,

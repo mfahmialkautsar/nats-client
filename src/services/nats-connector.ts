@@ -1,6 +1,6 @@
-import { RequestOptions } from "nats";
-import { connect, ConnectionOptions, NatsConnection } from "nats";
-import {
+import type { RequestOptions, ConnectionOptions, NatsConnection } from "nats";
+import { connect } from "nats";
+import type {
   HeaderMap,
   NatsConnectOptions,
   NatsConnector,

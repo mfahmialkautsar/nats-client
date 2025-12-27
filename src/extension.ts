@@ -12,7 +12,7 @@ import { VariableCompletionProvider } from "@/features/completion/variable-compl
 import { VariableHoverProvider } from "@/features/hover/variable-hover-provider";
 import { VariableStore } from "@/services/variable-store";
 import { registerCommand } from "@/commands/registry";
-import { CommandContext } from "@/commands/context";
+import type { CommandContext } from "@/commands/context";
 
 import * as subscribeCmd from "@/commands/subscribe";
 import * as publishCmd from "@/commands/publish";

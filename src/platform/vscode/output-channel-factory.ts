@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import {
+import type {
   OutputChannelFactory,
   OutputChannelLike,
 } from "@/services/output-channel-registry";

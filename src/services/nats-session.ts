@@ -1,12 +1,8 @@
-import {
-  LogSink,
-  appendLogBlock,
-  LogBlock,
-  LogItem,
-} from "@/services/log-sink";
+import type { LogSink, LogBlock, LogItem } from "@/services/log-sink";
+import { appendLogBlock } from "@/services/log-sink";
 import { readMsgHeaders } from "@/services/header-utils";
 import { buildMsgHeaders } from "@/services/header-utils";
-import {
+import type {
   HeaderMap,
   JetStreamPullOptions,
   MsgLike,

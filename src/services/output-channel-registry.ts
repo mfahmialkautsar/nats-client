@@ -1,4 +1,4 @@
-import { LogSink } from "@/services/log-sink";
+import type { LogSink } from "@/services/log-sink";
 
 export interface OutputChannelLike extends LogSink {
   show(preserveFocus?: boolean): void;

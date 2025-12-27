@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
-import { VariableStore } from "@/services/variable-store";
-import { parseNatsDocument } from "@/core/nats-document-parser";
+import type { VariableStore } from "@/services/variable-store";
 
 export class VariableCompletionProvider
   implements vscode.CompletionItemProvider

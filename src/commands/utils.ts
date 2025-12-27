@@ -3,11 +3,12 @@ import {
   parseNatsDocument,
   findActionNearestLine,
 } from "@/core/nats-document-parser";
-import { NatsAction, NatsActionType } from "@/core/nats-actions";
-import { VariableStore } from "@/services/variable-store";
+import type { NatsAction, NatsActionType } from "@/core/nats-actions";
+import type { VariableStore } from "@/services/variable-store";
 import { appendLogBlock } from "@/services/log-sink";
+import type { OutputChannelLike } from "@/services/output-channel-registry";
 
-import { CommandContext } from "./context";
+import type { CommandContext } from "./context";
 
 export async function resolveAction(
   filePath: string,

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { segmentNatsDocument, RawLine } from "@/core/nats-document-parser";
+import type { RawLine } from "@/core/nats-document-parser";
+import { segmentNatsDocument } from "@/core/nats-document-parser";
 
 const FILE_GLOB = "**/*.nats";
 const JSON_CANDIDATE = /^[\[{]/;

@@ -1,4 +1,4 @@
-import { CommandContext } from "./context";
+import type { CommandContext } from "./context";
 import { handleError } from "./utils";
 
 export function showOutput(ctx: CommandContext) {

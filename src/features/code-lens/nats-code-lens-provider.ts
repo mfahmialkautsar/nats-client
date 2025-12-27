@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { parseNatsDocument } from "@/core/nats-document-parser";
-import { NatsSession } from "@/services/nats-session";
-import { VariableStore } from "@/services/variable-store";
+import type { NatsSession } from "@/services/nats-session";
+import type { VariableStore } from "@/services/variable-store";
 
 const FILE_GLOB = "**/*.nats";
 

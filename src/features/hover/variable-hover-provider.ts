@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { VariableStore } from "@/services/variable-store";
+import type { VariableStore } from "@/services/variable-store";
 
 export class VariableHoverProvider implements vscode.HoverProvider {
   constructor(private readonly variableStore: VariableStore) {}

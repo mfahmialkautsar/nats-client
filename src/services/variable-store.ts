@@ -1,4 +1,5 @@
 import type { Memento, Event } from "vscode";
+import type * as vscodeType from "vscode";
 
 interface EventEmitterLike<T> {
   event: Event<T>;
@@ -30,7 +31,7 @@ export class VariableStore {
     if (emitterFactory) {
       this.emitter = emitterFactory();
     } else {
-      const vscode = require("vscode") as typeof import("vscode");
+      const vscode = require("vscode") as typeof vscodeType;
       this.emitter = new vscode.EventEmitter<void>();
     }
     this.onDidChange = this.emitter.event;
