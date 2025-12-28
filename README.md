@@ -4,19 +4,20 @@
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/mfahmialkautsar.nats-client.svg)](https://marketplace.visualstudio.com/items?itemName=mfahmialkautsar.nats-client)
 [![License](https://img.shields.io/github/license/mfahmialkautsar/vscode-nats-client)](LICENSE)
 
-A VS Code workflow inspired by the HTTP Client: author `.nats` files, run CodeLens actions, visualize replies, and manage connection variables without leaving the editor.
+Author `.nats` files and run NATS actions from the editor, in a REST Client-style workflow.
 
-## Highlights
+## Main Features
 
-- **NATS-native scripts** – Parse `SUBSCRIBE`, `PUBLISH`, `REQUEST`, and `REPLY` blocks with headers, payloads, and metadata via `src/core/nats-document-parser.ts`.
-- **One-click execution** – `src/features/code-lens` attaches CodeLens controls that start or stop subscriptions, fire requests, publish payloads, and reply handlers without switching focus.
-- **Structured logging** – `OutputChannelRegistry` multiplexes per-subject logs while `appendLogBlock` groups meta data, headers, and payload previews in the primary output channel.
-- **Environment-aware variables** – Manage secrets and templated tokens via the `NATS Variables` tree view backed by `VariableStore`, including `{{token}}` substitutions and `{{env:NAME}}` lookups.
-- **Status-aware sessions** – `StatusBarController` keeps an at-a-glance connection count, while `NatsSession` tracks active subscriptions and reply handlers so you can tear them down quickly.
+- Send NATS actions from CodeLens in `.nats` files.
+- Compose multiple actions in one file with `###` delimiters.
+- JetStream support (`JSPUBLISH`, `JSCONSUME`) and a `JetStream Explorer` view.
+- Variables with completion and hover: `{{token}}` (stored in `NATS Variables`) and `{{env:NAME}}` (OS environment).
+- Structured output channels (main output + per-subject channels).
+- Connection management UI for saved and ad-hoc connections.
 
-## Script format
+## Usage
 
-Each action block mimics the HTTP Client grammar:
+Create a `.nats` file and write an action block.
 
 ```nats
 REQUEST nats://localhost:4222/lab.echo
@@ -24,58 +25,141 @@ NATS-Timeout: 5000
 Trace-Id: randomId()
 
 {
-	"id": randomId(),
+	"id": 1,
 	"subject": "cpu"
 }
 ```
 
-- Headers prefixed with `NATS-` configure connection metadata (server overrides, etc.).
-- Trace headers (`Trace-Id`, `Responder-Id`, …) are forwarded to the server.
-- Variables defined in the tree view can be referenced via `{{token}}`; environment variables use `{{env:NAME}}`.
-- Use triple hashes (`###`) to separate multiple actions inside the same document.
+Run the action using the CodeLens shown above the block.
+
+### Multiple actions in one file
+
+Use `###` to separate actions:
+
+```nats
+PUBLISH nats://localhost:4222/lab.events
+
+{"event":"start"}
+
+###
+
+REQUEST nats://localhost:4222/lab.echo
+NATS-Timeout: 5000
+
+{"hello":"world"}
+```
+
+## Install
+
+Press `F1`, type `ext install`, then search for `mfahmialkautsar.nats-client`.
+
+## Making NATS actions
+
+Each action block follows a request-line + headers + optional body format.
+
+### Request line
+
+The first non-empty line is the action line.
+
+```nats
+SUBSCRIBE nats://localhost:4222/lab.events
+
+PUBLISH nats://localhost:4222/lab.events
+
+REQUEST nats://localhost:4222/lab.echo
+
+REPLY nats://localhost:4222/lab.echo
+```
+
+### Headers
+
+- `NATS-*` headers configure action/session behavior (for example `NATS-Timeout`, server overrides, JetStream stream/durable).
+- Other headers are forwarded as message headers.
+
+### Body
+
+If present, the body is everything after the first blank line.
+
+## JetStream
+
+JetStream actions are supported in `.nats` files.
+
+```nats
+@url = nats://localhost:4222
+@stream = orders
+@subject = orders.new
+@consumer = monitor
+
+JSPUBLISH {{url}}/{{subject}}
+NATS-Stream: {{stream}}
+
+{
+  "id": "order-123",
+  "status": "created"
+}
+
+###
+
+JSCONSUME {{url}}/{{stream}}/{{consumer}}
+```
+
+See `examples/jetstream.nats` for a complete, runnable example.
+
+### JetStream Explorer
+
+The `JetStream Explorer` view provides actions for streams and consumers:
+
+- Refresh
+- Create / Update / Delete Stream
+- Create / Update / Delete Consumer
+- View Stream Info / View Consumer Info
+
+## Variables
+
+Variables are resolved before running actions:
+
+- `{{name}}`: resolved from the active environment in the `NATS Variables` Explorer view.
+- `{{env:NAME}}`: resolved from OS environment variables.
+
+You can manage environments/variables from the `NATS Variables` view title buttons and context menus.
+
+## Views and commands
+
+Explorer views:
+
+- `NATS Variables`
+- `JetStream Explorer`
+
+Common commands:
+
+- `NATS: Manage Connections`
+- `NATS: Reset Connections`
+- `NATS: Show Output`
+- `NATS: Show Subscriptions`
+- `NATS: Show Reply Handlers`
+
+## Configuration
+
+| Setting                       | Default | Description                                                                                           |
+| ----------------------------- | ------- | ----------------------------------------------------------------------------------------------------- |
+| `natsClient.requestTimeoutMs` | `15000` | Default timeout in milliseconds for request/response operations when `NATS-Timeout` is not specified. |
 
 ## Examples
 
 Ready-to-run flows live under `examples/`:
 
-- `examples/pub-sub.nats` – two concurrent subscriptions plus matching publish blocks for quick smoke tests.
-- `examples/request-reply.nats` – combines reply handlers with literal and JSON requests, showing how `$msg` templates render responses.
-
-Open an example, hover the CodeLens for the action you want, and execute the command to stream results into the output channel.
-
-## Variables and templating
-
-- The `NATS Variables` tree appears in the Explorer view (`NATS Variables`). Use the view title buttons and the item/context menus to add, edit, delete, copy, and set the active environment.
-- The tree stores named variables per environment; the active environment is used when resolving tokens before requests, publishes, subscriptions, and reply handlers.
-- Reference variables using `{{name}}`; use `{{env:NAME}}` to read OS environment variables.
-- Built-in helpers include `randomId()` and `$json.*` / `$msg.*` shortcuts evaluated by `nats-actions` and `nats-session` for templated replies.
-
-## Features
-
-The extension contributes the following entry points:
-
-- Inline CodeLens controls appear above action blocks in `.nats` files; these are the primary way to run subscriptions, requests, publishes, and reply handlers.
-- A `NATS Variables` Explorer view provides add/edit/delete and copy actions for environments and variables via view title buttons and context menus.
-- The status bar shows the current active connection count. A connection management QuickPick is available via the `NATS: Manage Connections` command (registered by the extension).
-- Status bar indicator that surfaces active connection counts.
-
-## Configuration
-
-| Setting                       | Default | Description                                                           |
-| ----------------------------- | ------- | --------------------------------------------------------------------- |
-| `natsClient.requestTimeoutMs` | `15000` | Fallback timeout for `REQUEST` actions when `NATS-Timeout` is absent. |
+- `examples/pub-sub.nats`
+- `examples/request-reply.nats`
+- `examples/jetstream.nats`
 
 ## Development workflow
 
 ```bash
 bun install
-bun run watch                 # incremental builds while editing
-bun run verify                # format, lint, typecheck, and unit tests
-bun run test:e2e              # Vitest e2e suite
-bun run integration:test      # VS Code harness (xvfb on CI)
+bun run watch
+bun run test
 ```
 
-## Contributing & support
+## Feedback
 
-- Issues: [github.com/mfahmialkautsar/vscode-nats-client/issues](https://github.com/mfahmialkautsar/vscode-nats-client/issues)
-- Discussions and feature requests are welcome—attach example `.nats` files when possible so we can reproduce flows quickly.
+- Issues: https://github.com/mfahmialkautsar/vscode-nats-client/issues

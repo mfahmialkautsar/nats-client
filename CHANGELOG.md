@@ -6,6 +6,24 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 This project is licensed under the MIT License.
 
+## [0.0.4] - 2025-12-28
+
+### Added
+
+- JetStream publish and consume workflows, including a new JetStream Explorer view with create/update/delete and info actions for streams and consumers.
+- Variable resolution tooling: Explorer-backed variable store, completion provider, and hover provider for `{{token}}` and `{{env:NAME}}` substitutions.
+- Expanded automated coverage: reorganized tests into unit/e2e/integration suites, added JetStream e2e coverage, and refreshed CI/scripts.
+
+### Changed
+
+- Connection management now supports saved and ad-hoc connections persisted via VS Code Memento, with add/edit/delete/manage UI.
+- Output/log handling is more consistent via centralized error handling and reveal logic across commands.
+
+### Improved
+
+- `.nats` parsing and syntax highlighting for variables, headers, and invalid command detection.
+- Session resiliency and header handling, including clearer log metadata.
+
 ## [0.0.3] - 2025-11-20
 
 ### Added
