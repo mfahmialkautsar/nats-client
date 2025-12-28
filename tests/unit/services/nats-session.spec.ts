@@ -1,110 +1,13 @@
-import { TextDecoder, TextEncoder } from "node:util";
+import { TextDecoder } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import { NatsSession, interpolateTemplate } from "@/services/nats-session";
-import type {
-  HeadersLike,
-  MsgLike,
-  NatsConnectOptions,
-  NatsConnectionLike,
-  NatsConnector,
-  SubscriptionLike,
-} from "@/services/nats-types";
-import { TestSink } from "@tests/helpers/test-sink";
-import type { Memento } from "vscode";
+import type { MsgLike, NatsConnector } from "@/services/nats-types";
+import { TestSink } from "@tests/mocks/test-sink";
+import { MockMemento } from "@tests/mocks/memento";
+import { FakeNatsConnection } from "@tests/mocks/nats-connection";
+import { createMessage, flushAsync } from "@tests/utils/nats-helpers";
 
-class MockMemento implements Memento {
-  private storage = new Map<string, unknown>();
-
-  get<T>(key: string): T | undefined;
-  get<T>(key: string, defaultValue: T): T;
-  get(key: string, defaultValue?: unknown) {
-    return this.storage.get(key) ?? defaultValue;
-  }
-
-  update(key: string, value: unknown): Thenable<void> {
-    this.storage.set(key, value);
-    return Promise.resolve();
-  }
-
-  keys(): readonly string[] {
-    return Array.from(this.storage.keys());
-  }
-}
-
-class FakeConnection implements NatsConnectionLike {
-  info = { client_id: "client", host: "localhost", port: 4222 };
-  lastOptions: NatsConnectOptions | undefined;
-  published: Array<{
-    subject: string;
-    payload: string | Uint8Array;
-    headers?: Record<string, string>;
-  }> = [];
-  requested: Array<{
-    subject: string;
-    payload: string;
-    timeout?: number;
-    headers?: Record<string, string>;
-  }> = [];
-  closed = false;
-  private readonly subscriptions = new Map<string, MsgLike[]>();
-  requestResponse: MsgLike | undefined;
-
-  setSubscriptionMessages(subject: string, messages: MsgLike[]): void {
-    this.subscriptions.set(subject, messages);
-  }
-
-  subscribe(subject: string): SubscriptionLike {
-    const messages = this.subscriptions.get(subject) ?? [];
-    const iterator = (async function* () {
-      for (const message of messages) {
-        yield message;
-      }
-    })();
-    const subscription = Object.assign(iterator, {
-      unsubscribe: () => {},
-    });
-    return subscription as SubscriptionLike;
-  }
-
-  publish(
-    subject: string,
-    data: string | Uint8Array,
-    options?: { headers?: Record<string, string> },
-  ): void {
-    this.published.push({ subject, payload: data, headers: options?.headers });
-  }
-
-  async request(
-    subject: string,
-    data: string | Uint8Array,
-    options?: { timeout?: number; headers?: Record<string, string> },
-  ): Promise<MsgLike> {
-    this.requested.push({
-      subject,
-      payload: String(data),
-      timeout: options?.timeout,
-      headers: options?.headers,
-    });
-    if (this.requestResponse) {
-      return this.requestResponse;
-    }
-    return this.requestResponse ?? createMessage("ok").msg;
-  }
-
-  async close(): Promise<void> {
-    this.closed = true;
-  }
-
-  isClosed(): boolean {
-    return this.closed;
-  }
-
-  async flush(): Promise<void> {
-    // No-op for tests
-  }
-}
-
-function createConnector(connection: FakeConnection): NatsConnector {
+function createConnector(connection: FakeNatsConnection): NatsConnector {
   return async (options) => {
     connection.lastOptions = options;
     return connection;
@@ -483,47 +386,11 @@ describe("interpolateTemplate", () => {
 });
 
 function buildSession(now?: () => Date) {
-  const connection = new FakeConnection();
+  const connection = new FakeNatsConnection();
   const session = new NatsSession(
     createConnector(connection),
     new MockMemento(),
     now,
   );
   return { connection, session };
-}
-
-function createMessage(
-  body: string,
-  options: {
-    subject?: string;
-    headers?: Record<string, string>;
-    reply?: string;
-  } = {},
-) {
-  const headers = createHeaders(options.headers ?? {});
-  const msg: MsgLike = {
-    subject: options.subject ?? "lab.metrics",
-    reply: options.reply,
-    headers,
-    data: new TextEncoder().encode(body),
-    string: () => body,
-    json: () => JSON.parse(body),
-    respond: () => {},
-  };
-  return { msg };
-}
-
-function createHeaders(entries: Record<string, string>): HeadersLike {
-  return {
-    get: (name: string) => entries[name],
-    *[Symbol.iterator]() {
-      for (const entry of Object.entries(entries)) {
-        yield entry as [string, string];
-      }
-    },
-  } as HeadersLike;
-}
-
-function flushAsync(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
 }
