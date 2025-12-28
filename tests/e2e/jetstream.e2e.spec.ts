@@ -3,10 +3,10 @@ import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer, Wait } from "testcontainers";
 import type { NatsConnection, JetStreamManager, ConnectionOptions } from "nats";
 import { connect, StringCodec, AckPolicy } from "nats";
-import { TestSink } from "@tests/helpers/test-sink";
+import { TestSink } from "@tests/mocks/test-sink";
 import { NatsSession } from "@/services/nats-session";
 import type { NatsConnector, NatsConnectOptions } from "@/services/nats-types";
-import { MockMemento } from "@tests/helpers/mock-memento";
+import { MockMemento } from "@tests/mocks/memento";
 
 const sc = StringCodec();
 

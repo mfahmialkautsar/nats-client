@@ -5,9 +5,9 @@ import { GenericContainer } from "testcontainers";
 import { StringCodec, connect, headers as createHeaders } from "nats";
 import { NatsSession } from "@/services/nats-session";
 import { createDefaultConnector } from "@/services/nats-connector";
-import { TestSink } from "@tests/helpers/test-sink";
-import { waitFor } from "@tests/helpers/wait-for";
-import { MockMemento } from "@tests/helpers/mock-memento";
+import { TestSink } from "@tests/mocks/test-sink";
+import { waitFor } from "@tests/utils/wait-for";
+import { MockMemento } from "@tests/mocks/memento";
 
 describe("NatsSession e2e (Testcontainers)", () => {
   let container: StartedTestContainer | null = null;

@@ -4,7 +4,7 @@ import {
   findActionNearestLine,
   segmentNatsDocument,
 } from "@/core/nats-document-parser";
-import { EXAMPLES } from "@tests/helpers/read-example";
+import { EXAMPLES } from "@tests/utils/read-example";
 
 const requestReplyExample = EXAMPLES.REQUEST_REPLY;
 const pubSubExample = EXAMPLES.PUB_SUB;

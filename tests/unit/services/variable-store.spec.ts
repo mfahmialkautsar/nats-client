@@ -1,42 +1,13 @@
-import type { Memento, Event } from "vscode";
 import { describe, expect, it } from "vitest";
+import { EventEmitter } from "vscode";
 import { VariableStore } from "@/services/variable-store";
-
-class MemoryMemento implements Memento {
-  private readonly data = new Map<string, unknown>();
-
-  get<T>(key: string, defaultValue?: T): T | undefined {
-    return this.data.has(key) ? (this.data.get(key) as T) : defaultValue;
-  }
-
-  update(key: string, value: unknown): Thenable<void> {
-    this.data.set(key, value);
-    return Promise.resolve();
-  }
-
-  keys(): readonly string[] {
-    return Array.from(this.data.keys());
-  }
-}
-
-class TestEventEmitter<T> {
-  private readonly listeners = new Set<(data: T) => void>();
-
-  readonly event: Event<T> = (listener) => {
-    this.listeners.add(listener);
-    return { dispose: () => this.listeners.delete(listener) };
-  };
-
-  fire(data: T): void {
-    this.listeners.forEach((listener) => listener(data));
-  }
-}
+import { MockMemento } from "@tests/mocks/memento";
 
 describe("VariableStore", () => {
   it("stores per-environment variables and resolves tokens", async () => {
     const store = new VariableStore(
-      new MemoryMemento(),
-      () => new TestEventEmitter(),
+      new MockMemento(),
+      () => new EventEmitter(),
     );
     await store.set("token", "123", "staging");
     await store.setActiveEnvironment("staging");
@@ -47,8 +18,8 @@ describe("VariableStore", () => {
 
   it("falls back to the original token when no value is available", () => {
     const store = new VariableStore(
-      new MemoryMemento(),
-      () => new TestEventEmitter(),
+      new MockMemento(),
+      () => new EventEmitter(),
     );
     const rendered = store.resolveText("Value {{missing}}");
     expect(rendered).toBe("Value {{missing}}");
@@ -56,8 +27,8 @@ describe("VariableStore", () => {
 
   it("resolves records and optional strings", async () => {
     const store = new VariableStore(
-      new MemoryMemento(),
-      () => new TestEventEmitter(),
+      new MockMemento(),
+      () => new EventEmitter(),
     );
     await store.set("trace", "abc");
     const headers = store.resolveRecord({ "Trace-Id": "{{trace}}" });
@@ -67,8 +38,8 @@ describe("VariableStore", () => {
 
   it("handles deletes, environment lists, and OS env fallbacks", async () => {
     const store = new VariableStore(
-      new MemoryMemento(),
-      () => new TestEventEmitter(),
+      new MockMemento(),
+      () => new EventEmitter(),
     );
     await store.set("token", "value");
     expect(store.listVariables()).toEqual([{ key: "token", value: "value" }]);
@@ -84,8 +55,8 @@ describe("VariableStore", () => {
 
   it("creates and deletes environments while emitting change events", async () => {
     const store = new VariableStore(
-      new MemoryMemento(),
-      () => new TestEventEmitter(),
+      new MockMemento(),
+      () => new EventEmitter(),
     );
     const changes: number[] = [];
     store.onDidChange(() => changes.push(1));
@@ -100,8 +71,8 @@ describe("VariableStore", () => {
 
   it("ignores blank environment names and reverts to default after deleting the active environment", async () => {
     const store = new VariableStore(
-      new MemoryMemento(),
-      () => new TestEventEmitter(),
+      new MockMemento(),
+      () => new EventEmitter(),
     );
     await store.createEnvironment("   ");
     expect(store.listEnvironments()).toEqual(["default"]);
@@ -114,8 +85,8 @@ describe("VariableStore", () => {
 
   it("ignores delete calls for the default or unknown environments", async () => {
     const store = new VariableStore(
-      new MemoryMemento(),
-      () => new TestEventEmitter(),
+      new MockMemento(),
+      () => new EventEmitter(),
     );
     await store.deleteEnvironment("default");
     await store.deleteEnvironment("missing");

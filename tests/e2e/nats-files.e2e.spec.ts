@@ -9,8 +9,8 @@ import {
 } from "vitest";
 import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer } from "testcontainers";
-import { MockMemento } from "@tests/helpers/mock-memento";
-import { EXAMPLES } from "@tests/helpers/read-example";
+import { MockMemento } from "@tests/mocks/memento";
+import { EXAMPLES } from "@tests/utils/read-example";
 
 // Mock vscode module
 vi.mock("vscode", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { appendLogBlock } from "@/services/log-sink";
-import { TestSink } from "@tests/helpers/test-sink";
+import { TestSink } from "@tests/mocks/test-sink";
 
 describe("appendLogBlock", () => {
   it("writes envelope, item lines, and headers with indent", () => {
