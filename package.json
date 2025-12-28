@@ -287,7 +287,7 @@
     "vscode:package": "vsce package",
     "vscode:publish": "vsce publish",
     "compile": "bun build src/extension.ts --outdir=out --target=node --external vscode --format=cjs",
-    "watch": "bun build src/extension.ts --outdir=out --target=node --sourcemap=external --external vscode --format=cjs --watch",
+    "watch": "bun build src/extension.ts --outdir=out --target=node --sourcemap=inline --external vscode --format=cjs --watch",
     "pretest": "bun run compile && bun run typecheck && bun run lint",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
