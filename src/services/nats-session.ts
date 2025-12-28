@@ -1,5 +1,6 @@
 import type { LogSink, LogBlock, LogItem } from "@/services/log-sink";
 import { appendLogBlock } from "@/services/log-sink";
+import type { JetStreamManager } from "nats";
 import { readMsgHeaders } from "@/services/header-utils";
 import { buildMsgHeaders } from "@/services/header-utils";
 import type {
@@ -14,6 +15,8 @@ import { EventEmitter, type Memento } from "vscode";
 
 interface SubscriptionContext {
   subject: string;
+  stream?: string;
+  consumer?: string;
   server: string;
   subscription: SubscriptionLike;
   task: Promise<void>;
@@ -21,6 +24,8 @@ interface SubscriptionContext {
   template?: string;
   payload?: string;
   headers?: HeaderMap;
+  isJetStream?: boolean;
+  filterSubject?: string;
 }
 
 interface ManagedConnection {
@@ -228,6 +233,103 @@ export class NatsSession {
     return this.collectCount(this.replyCounts, subject);
   }
 
+  async publishJetStream(
+    serverUrl: string,
+    stream: string | undefined,
+    subject: string,
+    payload: string,
+    headers?: HeaderMap,
+  ): Promise<LogBlock> {
+    const connection = await this.getConnection(serverUrl);
+    const nc = connection.connection;
+    if (!nc.jetstream) {
+      throw new Error("JetStream is not available on this connection");
+    }
+    const js = nc.jetstream();
+
+    const timestamp = this.timestamp();
+    const prefix = this.connectionInfo(nc);
+
+    const msgHeaders = buildMsgHeaders(headers);
+    const pubAck = await js.publish(subject, payload, { headers: msgHeaders });
+
+    const meta = {
+      timestamp,
+      connection: prefix,
+      subject,
+      stream: pubAck.stream,
+      seq: pubAck.seq.toString(),
+      type: "JetStream Publish",
+    };
+    const items: LogItem[] = [
+      { title: "Published (JetStream)", body: payload, headers },
+    ];
+    return { meta, items };
+  }
+
+  async subscribeJetStream(
+    serverUrl: string,
+    stream: string,
+    consumerName: string,
+    subject: string | undefined,
+    sink: LogSink,
+    key: string,
+  ): Promise<void> {
+    if (this.subscriptions.has(key)) {
+      return;
+    }
+    const connection = await this.getConnection(serverUrl);
+    const nc = connection.connection;
+    if (!nc.jetstream) {
+      throw new Error("JetStream is not available on this connection");
+    }
+    const js = nc.jetstream();
+
+    const consumer = await js.consumers.get(stream, consumerName);
+    const subscription = await consumer.consume();
+
+    const displaySubject = subject || `${stream}/${consumerName}`;
+
+    const task = this.consumeSubscription(
+      nc,
+      subscription as unknown as SubscriptionLike,
+      displaySubject,
+      sink,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      stream,
+      consumerName,
+    );
+
+    this.subscriptions.set(key, {
+      subject: displaySubject,
+      stream,
+      consumer: consumerName,
+      server: connection.serverKey,
+      subscription: subscription as unknown as SubscriptionLike,
+      task,
+      sink,
+      isJetStream: true,
+      filterSubject: subject,
+    });
+    this.incrementCount(
+      this.subscriptionCounts,
+      connection.serverKey,
+      displaySubject,
+    );
+  }
+
+  async getJetStreamManager(serverUrl: string): Promise<JetStreamManager> {
+    const connection = await this.getConnection(serverUrl);
+    const nc = connection.connection;
+    if (!nc.jetstreamManager) {
+      throw new Error("JetStream Manager is not available on this connection");
+    }
+    return nc.jetstreamManager();
+  }
+
   async reset(): Promise<void> {
     this.stopAll(this.subscriptions, this.subscriptionCounts);
     this.stopAll(this.replies, this.replyCounts);
@@ -293,6 +395,10 @@ export class NatsSession {
       key: string;
       subject: string;
       sink: LogSink;
+      isJetStream?: boolean;
+      stream?: string;
+      consumer?: string;
+      filterSubject?: string;
     }> = [];
 
     const repliesToReconnect: Array<{
@@ -310,6 +416,10 @@ export class NatsSession {
           key,
           subject: ctx.subject,
           sink: ctx.sink,
+          isJetStream: ctx.isJetStream,
+          stream: ctx.stream,
+          consumer: ctx.consumer,
+          filterSubject: ctx.filterSubject,
         });
       }
     }
@@ -349,12 +459,23 @@ export class NatsSession {
     this.connections.set(serverKey, managed);
 
     for (const sub of subsToReconnect) {
-      await this.startSubscription(
-        existing.rawUrl,
-        sub.subject,
-        sub.sink,
-        sub.key,
-      );
+      if (sub.isJetStream && sub.stream && sub.consumer) {
+        await this.subscribeJetStream(
+          existing.rawUrl,
+          sub.stream,
+          sub.consumer,
+          sub.filterSubject,
+          sub.sink,
+          sub.key,
+        );
+      } else {
+        await this.startSubscription(
+          existing.rawUrl,
+          sub.subject,
+          sub.sink,
+          sub.key,
+        );
+      }
     }
 
     for (const reply of repliesToReconnect) {
@@ -422,7 +543,12 @@ export class NatsSession {
     if (!context) {
       return;
     }
-    context.subscription.unsubscribe();
+    if (context.subscription.unsubscribe) {
+      context.subscription.unsubscribe();
+    } else if (context.subscription.close) {
+      // JetStream consumer messages
+      context.subscription.close();
+    }
     store.delete(key);
     this.decrementCount(counts, context.server, context.subject);
   }
@@ -446,6 +572,8 @@ export class NatsSession {
     template?: string,
     payload?: string,
     replyHeaders?: HeaderMap,
+    stream?: string,
+    consumer?: string,
   ): Promise<void> {
     const prefix = this.connectionInfo(connection);
     try {
@@ -468,6 +596,14 @@ export class NatsSession {
             connection: prefix,
             subject: msg.subject,
           };
+
+          if (stream) {
+            meta.stream = stream;
+          }
+          if (consumer) {
+            meta.consumer = consumer;
+          }
+
           const items: LogItem[] = [
             {
               title: "Received",
@@ -476,6 +612,15 @@ export class NatsSession {
             },
           ];
           appendLogBlock(sink, { meta, items }, "");
+
+          // Ack message if available (JetStream)
+          if (msg.ack) {
+            try {
+              msg.ack();
+            } catch (ackError) {
+              console.warn("Failed to ack message", ackError);
+            }
+          }
         }
       }
     } catch (error) {

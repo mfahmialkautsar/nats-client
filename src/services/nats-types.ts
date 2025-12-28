@@ -1,4 +1,4 @@
-import type { MsgHdrs } from "nats";
+import type { JetStreamClient, MsgHdrs, JetStreamManager } from "nats";
 
 export interface NatsConnectionInfo {
   client_id?: string | number;
@@ -24,7 +24,8 @@ export interface HeadersLike extends Iterable<[string, string | string[]]> {
 }
 
 export interface SubscriptionLike extends AsyncIterable<MsgLike> {
-  unsubscribe(): void;
+  unsubscribe?(): void;
+  close?(): Promise<void> | void;
 }
 
 export interface NatsConnectionLike {
@@ -40,6 +41,8 @@ export interface NatsConnectionLike {
     data: string | Uint8Array,
     options?: { timeout?: number; headers?: HeaderMap },
   ): Promise<MsgLike>;
+  jetstream?(): JetStreamClient;
+  jetstreamManager?(): Promise<JetStreamManager>;
   close(): Promise<void> | void;
   isClosed(): boolean;
   flush(): Promise<void>;
