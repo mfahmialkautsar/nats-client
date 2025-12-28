@@ -27,12 +27,22 @@ suite("Extension Test Suite", () => {
   });
 
   test("Variable completion should work", async () => {
-    const doc = await vscode.workspace.openTextDocument({
-      language: "nats",
-      content: "@my_var = value\nPUB {{my_var}}",
+    if (!vscode.workspace.workspaceFolders) {
+      throw new Error("No workspace folder found");
+    }
+    const workspaceUri = vscode.workspace.workspaceFolders[0].uri;
+    const docUri = vscode.Uri.joinPath(workspaceUri, "jetstream.nats");
+    const doc = await vscode.workspace.openTextDocument(docUri);
+
+    const editor = await vscode.window.showTextDocument(doc);
+    const lastLine = doc.lineCount - 1;
+    const newPos = new vscode.Position(lastLine + 1, 0);
+
+    await editor.edit((edit) => {
+      edit.insert(newPos, "\n{{");
     });
-    // Trigger completion at {{my_var|}}
-    const position = new vscode.Position(1, 10);
+
+    const position = new vscode.Position(lastLine + 1, 2);
     const list = (await vscode.commands.executeCommand(
       "vscode.executeCompletionItemProvider",
       doc.uri,
@@ -41,7 +51,7 @@ suite("Extension Test Suite", () => {
 
     assert.ok(list);
     assert.ok(list.items.length > 0);
-    const item = list.items.find((i) => i.label === "my_var");
-    assert.ok(item, "Should find local variable 'my_var'");
+    const item = list.items.find((i) => i.label === "url");
+    assert.ok(item, "Should find local variable 'url'");
   });
 });

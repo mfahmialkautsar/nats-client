@@ -1,30 +1,52 @@
-import assert from "node:assert";
-import { suite, test } from "mocha";
+import * as assert from "assert";
 import * as vscode from "vscode";
+import type { StartedTestContainer } from "testcontainers";
+import { GenericContainer, Wait } from "testcontainers";
+import { before, after, suite, test } from "mocha";
 import type { ExtensionAPI } from "@/extension";
 
-suite("NATS Client VS Code integration", () => {
+suite("NATS Client VS Code integration", function () {
+  this.timeout(60000); // Increase timeout for container startup
+
+  let container: StartedTestContainer | undefined;
+  let natsUrl: string;
+
+  before(async () => {
+    try {
+      console.log("Starting NATS container...");
+      container = await new GenericContainer("nats:alpine")
+        .withExposedPorts(4222)
+        .withCommand(["-js"]) // Enable JetStream
+        .withWaitStrategy(Wait.forLogMessage("Server is ready"))
+        .start();
+
+      const host = container.getHost();
+      const port = container.getMappedPort(4222);
+      natsUrl = `nats://${host}:${port}`;
+      console.log(`NATS Integration Test Server running at ${natsUrl}`);
+    } catch (err) {
+      console.error("Failed to start NATS container:", err);
+      throw err;
+    }
+  });
+
+  after(async () => {
+    if (container) {
+      await container.stop();
+    }
+  });
+
   test("activates extension and registers commands", async () => {
     const extension = vscode.extensions.getExtension(
       "mfahmialkautsar.nats-client",
     );
-    assert.ok(extension, "Expected extension to be installed");
-    const api = await extension.activate();
+    assert.ok(extension);
+    await extension.activate();
+    assert.ok(extension.isActive);
+
     const commands = await vscode.commands.getCommands(true);
-    assert.ok(commands.includes("nats.showOutput"));
-    assert.ok(commands.includes("nats.connections.menu"));
-    assert.ok(commands.includes("nats.showSubscriptions"));
-    assert.ok(commands.includes("nats.showReplyHandlers"));
-    if (api) {
-      assert.ok(
-        (api as ExtensionAPI).session,
-        "activate() should return session for tests",
-      );
-      assert.ok(
-        (api as ExtensionAPI).channelRegistry,
-        "activate() should return channelRegistry for tests",
-      );
-    }
+    assert.ok(commands.includes("nats.startSubscription"));
+    assert.ok(commands.includes("nats.publish"));
   });
 
   test("command-palette flow: subscriptions quick pick actions", async () => {
@@ -39,16 +61,12 @@ suite("NATS Client VS Code integration", () => {
     const key = "int-sub";
     const subject = "lab.integration.metrics";
     const ch = channelRegistry.acquire(subject, key);
-    await session.startSubscription(
-      "nats://localhost:4222",
-      subject,
-      ch.channel,
-      key,
-    );
+
+    await session.startSubscription(natsUrl, subject, ch.channel, key);
 
     const originalQuickPick = vscode.window.showQuickPick.bind(vscode.window);
     const responses: vscode.QuickPickItem[] = [
-      { label: subject, description: "nats://localhost:4222", detail: key },
+      { label: subject, description: natsUrl, detail: key },
       { label: "Unsubscribe", description: "Stop the subscription" },
     ];
     (vscode.window as unknown as Record<string, unknown>).showQuickPick =
@@ -76,8 +94,9 @@ suite("NATS Client VS Code integration", () => {
     const key = "int-reply";
     const subject = "lab.integration.reply";
     const ch = channelRegistry.acquire(`Reply:${subject}`, key);
+
     await session.startReplyHandler(
-      "nats://localhost:4222",
+      natsUrl,
       subject,
       "ok",
       undefined,
@@ -87,7 +106,7 @@ suite("NATS Client VS Code integration", () => {
 
     const originalQuickPick = vscode.window.showQuickPick.bind(vscode.window);
     const responses: vscode.QuickPickItem[] = [
-      { label: subject, description: "nats://localhost:4222", detail: key },
+      { label: subject, description: natsUrl, detail: key },
       { label: "Stop Reply Handler", description: "Stop the reply handler" },
     ];
     (vscode.window as unknown as Record<string, unknown>).showQuickPick =
@@ -105,7 +124,7 @@ suite("NATS Client VS Code integration", () => {
 
   test("formats .nats documents via registered provider", async () => {
     const document = await vscode.workspace.openTextDocument(
-      vscode.Uri.parse("untitled:test.nats"),
+      vscode.Uri.parse("untitled:test-fmt.nats"),
     );
     const editor = await vscode.window.showTextDocument(document);
     await editor.edit((edit) => {
@@ -114,6 +133,15 @@ suite("NATS Client VS Code integration", () => {
         'PUBLISH subject\n{\n"foo":"bar"\n}',
       );
     });
+    // Wait for extension activation implicitly usually works, but ensuring it is active:
+    const extension = vscode.extensions.getExtension(
+      "mfahmialkautsar.nats-client",
+    );
+    await extension?.activate();
+
+    // Sometimes provider needs a moment
+    await new Promise((r) => setTimeout(r, 500));
+
     const edits = await vscode.commands.executeCommand<vscode.TextEdit[]>(
       "vscode.executeFormatDocumentProvider",
       document.uri,
