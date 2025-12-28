@@ -121,7 +121,7 @@ describe("NatsSession", () => {
       "lab.metrics",
       "payload",
     );
-    expect(connection.lastOptions?.servers[0]).toBe("nats://localhost:4222");
+    expect(connection.lastOptions!.servers![0]).toBe("nats://localhost:4222");
     await session.reset();
   });
 

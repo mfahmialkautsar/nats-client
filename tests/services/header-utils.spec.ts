@@ -19,7 +19,7 @@ describe("header-utils", () => {
     const map = { A: "1", B: "2" };
     const hdrs = buildMsgHeaders(map);
     const record = readMsgHeaders(hdrs);
-    expect(record?.A).toBe("1");
-    expect(record?.B).toBe("2");
+    expect(record!.A).toBe("1");
+    expect(record!.B).toBe("2");
   });
 });
