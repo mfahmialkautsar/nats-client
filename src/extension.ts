@@ -9,7 +9,11 @@ import { StatusBarController } from "@/platform/vscode/status-bar-controller";
 import { registerVariableTree } from "@/platform/vscode/variable-tree-provider";
 import { VariableCompletionProvider } from "@/features/completion/variable-completion-provider";
 import { VariableHoverProvider } from "@/features/hover/variable-hover-provider";
+import { JetStreamExplorerProvider } from "@/features/jetstream/jetstream-explorer-provider";
+import { JetStreamFileSystemProvider } from "@/features/jetstream/jetstream-fs-provider";
 import { VariableStore } from "@/services/variable-store";
+import * as jetstreamPublishCmd from "@/commands/jetstream-publish";
+import * as jetstreamConsumeCmd from "@/commands/jetstream-consume";
 import { registerCommand } from "@/commands/registry";
 import type { CommandContext } from "@/commands/context";
 
@@ -62,6 +66,56 @@ export async function activate(context: vscode.ExtensionContext) {
   const variableHoverProvider = new VariableHoverProvider(variableStore);
   context.subscriptions.push(
     vscode.languages.registerHoverProvider("nats", variableHoverProvider),
+  );
+  const jetStreamFileSystemProvider = new JetStreamFileSystemProvider(session);
+  const jetStreamExplorerProvider = new JetStreamExplorerProvider(
+    session,
+    jetStreamFileSystemProvider,
+  );
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider(
+      "natsJetStreamExplorer",
+      jetStreamExplorerProvider,
+    ),
+  );
+  context.subscriptions.push(
+    vscode.workspace.registerFileSystemProvider(
+      "nats-jetstream",
+      jetStreamFileSystemProvider,
+      { isCaseSensitive: true, isReadonly: false },
+    ),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("nats.jetStreamExplorer.refresh", () =>
+      jetStreamExplorerProvider.refresh(),
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "nats.jetStreamExplorer.createStream",
+      (node) => jetStreamExplorerProvider.createStream(node),
+    ),
+    vscode.commands.registerCommand(
+      "nats.jetStreamExplorer.deleteStream",
+      (node) => jetStreamExplorerProvider.deleteStream(node),
+    ),
+    vscode.commands.registerCommand(
+      "nats.jetStreamExplorer.createConsumer",
+      (node) => jetStreamExplorerProvider.createConsumer(node),
+    ),
+    vscode.commands.registerCommand(
+      "nats.jetStreamExplorer.deleteConsumer",
+      (node) => jetStreamExplorerProvider.deleteConsumer(node),
+    ),
+    vscode.commands.registerCommand(
+      "nats.jetStreamExplorer.viewStreamInfo",
+      (node) => jetStreamExplorerProvider.viewStreamInfo(node),
+    ),
+    vscode.commands.registerCommand(
+      "nats.jetStreamExplorer.viewConsumerInfo",
+      (node) => jetStreamExplorerProvider.viewConsumerInfo(node),
+    ),
   );
 
   context.subscriptions.push(
@@ -143,6 +197,30 @@ export async function activate(context: vscode.ExtensionContext) {
     channelRegistry,
     (filePath: string, line: number) =>
       replyCmd.stopReplyHandler(ctx, filePath, line),
+  );
+
+  registerCommand(
+    context,
+    "nats.jetstreamPublish",
+    channelRegistry,
+    (filePath: string, line: number) =>
+      jetstreamPublishCmd.jetstreamPublish(ctx, filePath, line),
+  );
+
+  registerCommand(
+    context,
+    "nats.startJetStreamConsume",
+    channelRegistry,
+    (filePath: string, line: number) =>
+      jetstreamConsumeCmd.startJetStreamConsume(ctx, filePath, line),
+  );
+
+  registerCommand(
+    context,
+    "nats.stopJetStreamConsume",
+    channelRegistry,
+    (filePath: string, line: number) =>
+      jetstreamConsumeCmd.stopJetStreamConsume(ctx, filePath, line),
   );
 
   return { session, channelRegistry } as const;
