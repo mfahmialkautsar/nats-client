@@ -508,12 +508,16 @@ export class NatsSession {
             replyHeaders,
           );
         } else {
-          const meta = { timestamp, connection: prefix, subject };
+          const meta: Record<string, string> = {
+timestamp,
+connection: prefix,
+            subject: msg.subject,
+};
           const items: LogItem[] = [
             {
               title: "Received",
               body: msg.string(),
-              headers: readMsgHeaders((msg as any).headers),
+              headers: readMsgHeaders(msg.headers),
             },
           ];
           appendLogBlock(sink, { meta, items }, "");
@@ -674,33 +678,10 @@ export function interpolateTemplate(template: string, msg: MsgLike): string {
   return result;
 }
 
-function formatHeaders(msg: MsgLike): string {
-  if (!msg.headers) {
-    return "";
-  }
-  const entries: Record<string, string> = {};
-  const headerEntries = Array.from(
-    msg.headers as Iterable<[string, string | string[]]>,
-  );
-  for (const [key, value] of headerEntries) {
-    entries[key] = Array.isArray(value) ? value.join(",") : value;
-  }
-  return Object.keys(entries).length > 0
-    ? ` Headers: ${JSON.stringify(entries)}`
-    : "";
-}
-
 function safeStringResponse(msg: MsgLike): string {
   try {
     return JSON.stringify(msg.json());
   } catch {
     return msg.string();
   }
-}
-
-function formatOutgoingHeaders(headers?: HeaderMap): string {
-  if (!headers || Object.keys(headers).length === 0) {
-    return "";
-  }
-  return ` Headers: ${JSON.stringify(headers)}`;
 }
