@@ -303,21 +303,21 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
+    "@types/node": "^20.10.0",
     "@types/vscode": "^1.93.0",
-    "@vitest/coverage-v8": "^4.0.9",
+    "@vitest/coverage-v8": "^4.0.16",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "^3.7.0",
-    "eslint": "^9.39.1",
+    "@vscode/vsce": "^3.7.1",
+    "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.4",
-    "glob": "^11.0.3",
+    "glob": "^13.0.0",
     "mocha": "^11.7.5",
-    "prettier": "^3.6.2",
-    "testcontainers": "^11.8.1",
+    "prettier": "^3.7.4",
+    "testcontainers": "^11.10.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.4",
-    "vitest": "^4.0.9"
+    "typescript-eslint": "^8.50.1",
+    "vitest": "^4.0.16"
   },
   "dependencies": {
     "nats": "^2.29.3"
