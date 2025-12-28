@@ -81,7 +81,7 @@
     "invalid-commands": {
       "patterns": [
         {
-          "match": "^\\s*(?!(REPLY|REQUEST|SUBSCRIBE|PUBLISH)\\b)[A-Z]{2,}\\b.*$",
+          "match": "^\\s*(?!(REPLY|REQUEST|SUBSCRIBE|PUBLISH|JSPUBLISH|JSCONSUME)\\b)[A-Z]{2,}\\b.*$",
           "name": "invalid.illegal.nats"
         }
       ]
@@ -90,7 +90,7 @@
       "patterns": [
         {
           "name": "keyword.control.nats",
-          "match": "\\b(REPLY|REQUEST|SUBSCRIBE|PUBLISH)\\b"
+          "match": "\\b(REPLY|REQUEST|SUBSCRIBE|PUBLISH|JSPUBLISH|JSCONSUME)\\b"
         }
       ]
     },

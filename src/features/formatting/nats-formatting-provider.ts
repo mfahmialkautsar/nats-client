@@ -170,7 +170,14 @@ export class NatsFormatter {
       const upper = trimmed.split(/\s+/, 1)[0]?.toUpperCase();
       if (
         upper &&
-        ["SUBSCRIBE", "REQUEST", "PUBLISH", "REPLY"].includes(upper)
+        [
+          "SUBSCRIBE",
+          "REQUEST",
+          "PUBLISH",
+          "REPLY",
+          "JSPUBLISH",
+          "JSCONSUME",
+        ].includes(upper)
       ) {
         return index;
       }

@@ -88,6 +88,42 @@ export class NatsCodeLensProvider implements vscode.CodeLensProvider {
           );
           break;
         }
+        case "jetstreamPublish":
+          codeLenses.push(
+            new vscode.CodeLens(range, {
+              title: "JetStream Publish",
+              command: "nats.jetstreamPublish",
+              arguments: args,
+            }),
+          );
+          break;
+        case "jetstreamConsume": {
+          const stream = action.stream
+            ? this.variableStore.resolveText(action.stream)
+            : "";
+          const durable = action.durable
+            ? this.variableStore.resolveText(action.durable)
+            : "";
+          const server = action.server
+            ? this.variableStore.resolveText(action.server)
+            : "";
+          const key = `${server}|${stream}/${durable}`;
+          const isSubscribed = this.session.isSubscribed(key);
+          const activeCount = this.session.getSubscriptionCount(
+            `${stream}/${durable}`,
+          );
+
+          codeLenses.push(
+            new vscode.CodeLens(range, {
+              title: `${isSubscribed ? "Stop Consumption" : "Start Consumption"}${formatCount(activeCount)}`,
+              command: isSubscribed
+                ? "nats.stopJetStreamConsume"
+                : "nats.startJetStreamConsume",
+              arguments: args,
+            }),
+          );
+          break;
+        }
         default:
           break;
       }
