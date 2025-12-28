@@ -414,11 +414,12 @@
     "lint:fix": "eslint src tests --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --exclude tests/e2e",
+    "test": "bun run test:unit && bun run test:e2e && bun run test:integration",
+    "test:unit": "vitest run --exclude tests/e2e",
     "test:watch": "vitest watch --exclude tests/e2e",
     "test:e2e": "vitest run tests/e2e",
     "integration:test": "vscode-test",
-    "test:integration": "bun run tsc -p tsconfig.test.json && node out/src/test/runTest.js",
+    "test:integration": "bun run tsc -p tsconfig.test.json && node out/tests/integration/runTest.js",
     "verify": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
