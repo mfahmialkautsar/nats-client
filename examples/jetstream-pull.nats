@@ -1,6 +1,0 @@
-# JetStream durable pull example
-# Ensure telemetry-stream and telemetry-consumer already exist on the server.
-JETSTREAM nats://localhost:4222/telemetry-stream
-NATS-Stream: telemetry-stream
-NATS-Durable: telemetry-consumer
-NATS-Batch: 10

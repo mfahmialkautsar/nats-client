@@ -1,5 +1,4 @@
 import { TextDecoder, TextEncoder } from "node:util";
-import type { JetStreamClient } from "nats";
 import { describe, expect, it, vi } from "vitest";
 import { NatsSession, interpolateTemplate } from "@/services/nats-session";
 import type {
@@ -49,8 +48,6 @@ class FakeConnection implements NatsConnectionLike {
   closed = false;
   private readonly subscriptions = new Map<string, MsgLike[]>();
   requestResponse: MsgLike | undefined;
-  jetstreamClient?: JetStreamClient;
-  jetstream?: () => JetStreamClient;
 
   setSubscriptionMessages(subject: string, messages: MsgLike[]): void {
     this.subscriptions.set(subject, messages);
@@ -414,130 +411,6 @@ describe("NatsSession", () => {
     await session.reset();
   });
 
-  it("pulls JetStream batches via fetch and acknowledges each message", async () => {
-    const { connection, session } = buildSession();
-    const server = DEFAULT_URL;
-    const ack = vi.fn();
-    const first = createMessage('{"value":1}', { subject: "stream.subject" });
-    const second = createMessage('{"value":2}', { subject: "stream.subject" });
-    first.msg.ack = ack;
-    second.msg.ack = ack;
-    const fetch = vi.fn(async () =>
-      createAsyncIterable([first.msg, second.msg]),
-    );
-    connection.jetstreamClient = {
-      consumers: {
-        get: vi.fn(async () => ({ fetch })),
-      },
-    } as unknown as JetStreamClient;
-    connection.jetstream = () => connection.jetstreamClient as JetStreamClient;
-    const sink = new TestSink();
-    await session.pullJetStream(
-      server,
-      "STREAM",
-      "durable",
-      { batchSize: 2, timeoutMs: 1000 },
-      sink,
-    );
-    expect(ack).toHaveBeenCalledTimes(2);
-    expect(
-      sink.lines.filter((line: string) => line.includes("Received:")),
-    ).toHaveLength(2);
-    await session.reset();
-  });
-
-  it("logs ack failures when JetStream acknowledgements throw", async () => {
-    const { connection, session } = buildSession();
-    const failingAck = vi.fn(() => {
-      throw new Error("ack failed");
-    });
-    const message = createMessage('{"value":1}', { subject: "stream.subject" });
-    message.msg.ack = failingAck;
-    const fetch = vi.fn(async () => createAsyncIterable([message.msg]));
-    connection.jetstreamClient = {
-      consumers: {
-        get: vi.fn(async () => ({ fetch })),
-      },
-    } as unknown as JetStreamClient;
-    connection.jetstream = () => connection.jetstreamClient as JetStreamClient;
-    const sink = new TestSink();
-    await session.pullJetStream(
-      DEFAULT_URL,
-      "STREAM",
-      "durable",
-      { batchSize: 1, timeoutMs: 1000 },
-      sink,
-    );
-    expect(sink.lines.some((line: string) => line.includes("Ack error"))).toBe(
-      true,
-    );
-    await session.reset();
-  });
-
-  it("reports when JetStream pulls return no messages", async () => {
-    const { connection, session } = buildSession();
-    const fetch = vi.fn(async () => createAsyncIterable([]));
-    connection.jetstreamClient = {
-      consumers: {
-        get: vi.fn(async () => ({ fetch })),
-      },
-    } as unknown as JetStreamClient;
-    connection.jetstream = () => connection.jetstreamClient as JetStreamClient;
-    const sink = new TestSink();
-    await session.pullJetStream(
-      DEFAULT_URL,
-      "STREAM",
-      "durable",
-      { batchSize: 1, timeoutMs: 1000 },
-      sink,
-    );
-    expect(
-      sink.lines.some((line: string) => line.includes("No messages available")),
-    ).toBe(true);
-    await session.reset();
-  });
-
-  it("logs pull errors when JetStream fetch rejects", async () => {
-    const { connection, session } = buildSession();
-    const fetch = vi.fn(async () => {
-      throw new Error("boom");
-    });
-    connection.jetstreamClient = {
-      consumers: {
-        get: vi.fn(async () => ({ fetch })),
-      },
-    } as unknown as JetStreamClient;
-    connection.jetstream = () => connection.jetstreamClient as JetStreamClient;
-    const sink = new TestSink();
-    await session.pullJetStream(
-      DEFAULT_URL,
-      "STREAM",
-      "durable",
-      { batchSize: 1, timeoutMs: 1000 },
-      sink,
-    );
-    expect(sink.lines.some((line: string) => line.includes("Pull error"))).toBe(
-      true,
-    );
-    await session.reset();
-  });
-
-  it("throws when JetStream is unavailable on the connection", async () => {
-    const { connection, session } = buildSession();
-    delete connection.jetstream;
-    delete connection.jetstreamClient;
-    await expect(
-      session.pullJetStream(
-        DEFAULT_URL,
-        "STREAM",
-        "durable",
-        { batchSize: 1, timeoutMs: 1000 },
-        new TestSink(),
-      ),
-    ).rejects.toThrow("JetStream is not available");
-    await session.reset();
-  });
-
   it("disconnects and clears active subscriptions and reply handlers", async () => {
     const { connection, session } = buildSession();
     const sink = new TestSink();
@@ -649,14 +522,6 @@ function createHeaders(entries: Record<string, string>): HeadersLike {
       }
     },
   } as HeadersLike;
-}
-
-function createAsyncIterable(messages: MsgLike[]): AsyncIterable<MsgLike> {
-  return (async function* () {
-    for (const message of messages) {
-      yield message;
-    }
-  })();
 }
 
 function flushAsync(): Promise<void> {

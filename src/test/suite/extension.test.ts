@@ -23,8 +23,6 @@ suite("Extension Test Suite", () => {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes("nats.startSubscription"));
     assert.ok(commands.includes("nats.publish"));
-    assert.ok(commands.includes("nats.jetstreamPublish"));
-    assert.ok(commands.includes("nats.jetstreamSubscribe"));
     assert.ok(commands.includes("nats.variables.view.addEnvironment"));
   });
 

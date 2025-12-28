@@ -4,7 +4,6 @@ import { readMsgHeaders } from "@/services/header-utils";
 import { buildMsgHeaders } from "@/services/header-utils";
 import type {
   HeaderMap,
-  JetStreamPullOptions,
   MsgLike,
   NatsConnectOptions,
   NatsConnectionLike,
@@ -46,14 +45,14 @@ export class NatsSession {
   private readonly replies = new Map<string, SubscriptionContext>();
   private readonly subscriptionCounts = new Map<string, number>();
   private readonly replyCounts = new Map<string, number>();
-private readonly savedConnections: SavedConnection[] = [];
+  private readonly savedConnections: SavedConnection[] = [];
 
   private readonly _onDidChangeConnection = new EventEmitter<void>();
   public readonly onDidChangeConnection = this._onDidChangeConnection.event;
 
   constructor(
     private readonly connector: NatsConnector,
-private readonly state: Memento,
+    private readonly state: Memento,
     private readonly now: () => Date = () => new Date(),
   ) {
     this.savedConnections = this.state.get<SavedConnection[]>(
@@ -229,103 +228,6 @@ private readonly state: Memento,
     return this.collectCount(this.replyCounts, subject);
   }
 
-  async pullJetStream(
-    serverUrl: string,
-    stream: string,
-    durable: string,
-    options: JetStreamPullOptions,
-    sink: LogSink,
-  ): Promise<void> {
-    const connection = await this.getConnection(serverUrl);
-    const nc = connection.connection;
-    if (!nc.jetstream) {
-      throw new Error("JetStream is not available on this connection");
-    }
-    const js = nc.jetstream();
-    const batchSize = Math.max(1, options.batchSize);
-    const expires = Math.max(1000, options.timeoutMs);
-    const prefix = this.connectionInfo(nc);
-    let received = 0;
-
-    try {
-      const consumer = await js.consumers.get(stream, durable);
-      const iterator = await consumer.fetch({
-        max_messages: batchSize,
-        expires,
-      });
-      for await (const msg of iterator as AsyncIterable<MsgLike>) {
-        received += 1;
-        const timestamp = this.timestamp();
-        const meta = {
-          timestamp,
-          connection: prefix,
-      stream,
-          durable,
-        } as Record<string, string>;
-        const items: LogItem[] = [
-          {
-            title: "Received",
-            body: msg.string(),
-            headers: readMsgHeaders((msg as any).headers),
-          },
-        ];
-        appendLogBlock(sink, { meta, items }, "");
-        if (msg.ack) {
-          try {
-            await Promise.resolve(msg.ack());
-          } catch (error) {
-            const errorMsg =
-              error instanceof Error ? error.message : String(error);
-            if (
-              errorMsg.includes("DISCONNECT") ||
-              errorMsg.includes("CONNECTION")
-            ) {
-              this.markConnectionClosed(connection.serverKey);
-            }
-            const ts = this.timestamp();
-            const metaErr = {
-              timestamp: ts,
-              connection: prefix,
-      stream,
-              durable,
-            };
-            appendLogBlock(
-      sink,
-              {
-                meta: metaErr,
-                items: [{ title: "Ack error", body: this.formatError(error) }],
-              },
-              "",
-            );
-          }
-        }
-      }
-      if (received === 0) {
-        const meta = {
-          timestamp: this.timestamp(),
-          connection: prefix,
-          stream,
-          durable,
-        };
-        appendLogBlock(sink, {
-          meta,
-          items: [{ title: "No messages available" }],
-        });
-      }
-    } catch (error) {
-      const meta = {
-        timestamp: this.timestamp(),
-        connection: prefix,
-        stream,
-        durable,
-      };
-      appendLogBlock(sink, {
-        meta,
-        items: [{ title: "Pull error", body: this.formatError(error) }],
-      });
-    }
-  }
-
   async reset(): Promise<void> {
     this.stopAll(this.subscriptions, this.subscriptionCounts);
     this.stopAll(this.replies, this.replyCounts);
@@ -334,7 +236,7 @@ private readonly state: Memento,
     );
     this.connections.clear();
     await Promise.allSettled(closings);
-this._onDidChangeConnection.fire();
+    this._onDidChangeConnection.fire();
   }
 
   connectionCount(): number {
@@ -447,12 +349,12 @@ this._onDidChangeConnection.fire();
     this.connections.set(serverKey, managed);
 
     for (const sub of subsToReconnect) {
-        await this.startSubscription(
-          existing.rawUrl,
-          sub.subject,
-          sub.sink,
-          sub.key,
-        );
+      await this.startSubscription(
+        existing.rawUrl,
+        sub.subject,
+        sub.sink,
+        sub.key,
+      );
     }
 
     for (const reply of repliesToReconnect) {
@@ -520,7 +422,7 @@ this._onDidChangeConnection.fire();
     if (!context) {
       return;
     }
-      context.subscription.unsubscribe();
+    context.subscription.unsubscribe();
     store.delete(key);
     this.decrementCount(counts, context.server, context.subject);
   }
@@ -562,10 +464,10 @@ this._onDidChangeConnection.fire();
           );
         } else {
           const meta: Record<string, string> = {
-timestamp,
-connection: prefix,
+            timestamp,
+            connection: prefix,
             subject: msg.subject,
-};
+          };
           const items: LogItem[] = [
             {
               title: "Received",

@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { registerCodeLensProvider } from "@/features/code-lens/nats-code-lens-provider";
-import { registerJetStreamPullCommand } from "@/features/jetstream/register-jetstream-pull-command";
 import { registerFormattingProvider } from "@/features/formatting/nats-formatting-provider";
 import { createDefaultConnector } from "@/services/nats-connector";
 import { NatsSession } from "@/services/nats-session";
@@ -146,28 +145,8 @@ export async function activate(context: vscode.ExtensionContext) {
       replyCmd.stopReplyHandler(ctx, filePath, line),
   );
 
-  registerJetStreamPullCommand({
-    session,
-    channelRegistry,
-    defaultTimeoutMs: settings.requestTimeoutMs,
-    resolveAction,
-    resolveText: (value) => variableStore.resolveText(value),
-    resolveServer: (value) => resolveServer(value, variableStore),
-    register: (command, callback) =>
-  registerCommand(
-    context,
-        command,
-    channelRegistry,
-        async (...args: any[]) => {
-          await Promise.resolve(callback(...args));
-          statusBar.updateConnectionCount(session.connectionCount());
-        },
-      ),
-  });
-
   return { session, channelRegistry } as const;
 }
-
 export async function deactivate(): Promise<void> {
   if (session) {
     await session.reset();

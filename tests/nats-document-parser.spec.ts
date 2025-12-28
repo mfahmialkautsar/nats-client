@@ -93,20 +93,6 @@ describe("parseNatsDocument", () => {
     expect(action.data).toBe('{"value":1}');
   });
 
-  it("parses jetstream pull commands with metadata and clamps batch sizes", () => {
-    const text = `JETSTREAM nats://demo.nats.io/metrics
-NATS-Stream: metrics
-NATS-Durable: worker
-NATS-Batch: 0
-NATS-Timeout: 2500`;
-    const [action] = parseNatsDocument(text);
-    expect(action?.type).toBe("jetstreamPull");
-    expect(action?.batchSize).toBe(1);
-    expect(action?.timeoutMs).toBe(2500);
-    expect(action?.stream).toBe("metrics");
-    expect(action?.durable).toBe("worker");
-  });
-
   it("derives subject and server from metadata when the command omits them", () => {
     const text = `REQUEST
 NATS-Server: nats://demo.nats.io

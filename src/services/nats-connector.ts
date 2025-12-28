@@ -42,7 +42,6 @@ export function wrapConnection(connection: NatsConnection): NatsConnectionLike {
       }
       return connection.request(subject, data, requestOptions);
     },
-    jetstream: () => connection.jetstream(),
     close: () => connection.close(),
     isClosed: () => connection.isClosed(),
     flush: () => connection.flush(),

@@ -8,7 +8,6 @@
   "keywords": [
     "nats",
     "messaging",
-    "jetstream",
     "pubsub",
     "request-reply",
     "microservices",
@@ -63,10 +62,6 @@
       {
         "command": "nats.stopReplyHandler",
         "title": "NATS: Stop Reply Handler"
-      },
-      {
-        "command": "nats.jetStreamPull",
-        "title": "NATS: Pull JetStream Messages"
       },
       {
         "command": "nats.showOutput",
@@ -135,7 +130,7 @@
           "type": "number",
           "default": 15000,
           "minimum": 1000,
-          "description": "Default timeout in milliseconds for request/response operations and JetStream pulls when NATS-Timeout is not specified."
+          "description": "Default timeout in milliseconds for request/response operations when NATS-Timeout is not specified."
         }
       }
     },
@@ -180,10 +175,6 @@
         },
         {
           "command": "nats.stopReplyHandler",
-          "when": "false"
-        },
-        {
-          "command": "nats.jetStreamPull",
           "when": "false"
         },
         {

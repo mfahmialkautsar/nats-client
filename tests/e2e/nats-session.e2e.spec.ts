@@ -2,22 +2,12 @@ import { TextEncoder } from "node:util";
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer } from "testcontainers";
-import {
-  AckPolicy,
-  DeliverPolicy,
-  JetStreamManager,
-  StringCodec,
-  connect,
-  headers as createHeaders,
-} from "nats";
+import { StringCodec, connect, headers as createHeaders } from "nats";
 import { NatsSession } from "@/services/nats-session";
 import { createDefaultConnector } from "@/services/nats-connector";
 import { TestSink } from "@tests/helpers/test-sink";
 import { waitFor } from "@tests/helpers/wait-for";
 import { MockMemento } from "@tests/helpers/mock-memento";
-
-const STREAM_NAME = "E2E_STREAM";
-const CONSUMER_NAME = "E2E_CONSUMER";
 
 describe("NatsSession e2e (Testcontainers)", () => {
   let container: StartedTestContainer | null = null;
@@ -110,69 +100,4 @@ describe("NatsSession e2e (Testcontainers)", () => {
     expect(hasProcessedBy).toBe(true);
     subscription.unsubscribe();
   }, 20_000);
-
-  it("pulls JetStream batches through a durable consumer", async () => {
-    const sink = new TestSink();
-    const manager = await helperConnection!.jetstreamManager();
-    await ensureStreamAndConsumer(manager);
-    const codec = StringCodec();
-    const jetStreamHeaders = createHeaders();
-    jetStreamHeaders.set("X-Origin", "tests");
-    helperConnection!.publish("e2e.jetstream", codec.encode("first"), {
-      headers: jetStreamHeaders,
-    });
-    helperConnection!.publish("e2e.jetstream", codec.encode("second"), {
-      headers: jetStreamHeaders,
-    });
-    await helperConnection!.flush();
-    // small pause to ensure messages are persisted to the stream
-    await new Promise((r) => setTimeout(r, 200));
-    await session!.pullJetStream(
-      natsUrl,
-      STREAM_NAME,
-      CONSUMER_NAME,
-      { batchSize: 2, timeoutMs: 3000 },
-      sink,
-    );
-    await waitFor(
-      () =>
-        sink.lines.filter((line: string) => line.includes("Received:"))
-          .length >= 2,
-      { timeoutMs: 15000 },
-    );
-
-    expect(sink.lines.some((line: string) => line.includes("first"))).toBe(
-      true,
-    );
-    expect(sink.lines.some((line: string) => line.includes("second"))).toBe(
-      true,
-    );
-    expect(
-      sink.lines.some((line: string) => line.includes("X-Origin: tests")),
-    ).toBe(true);
-  }, 30_000);
 });
-
-async function ensureStreamAndConsumer(
-  manager: JetStreamManager,
-): Promise<void> {
-  try {
-    await manager.streams.delete(STREAM_NAME);
-  } catch {
-    // ignore missing stream
-  }
-  await manager.streams.add({
-    name: STREAM_NAME,
-    subjects: ["e2e.jetstream"],
-  });
-  try {
-    await manager.consumers.delete(STREAM_NAME, CONSUMER_NAME);
-  } catch {
-    // ignore missing consumer
-  }
-  await manager.consumers.add(STREAM_NAME, {
-    durable_name: CONSUMER_NAME,
-    ack_policy: AckPolicy.Explicit,
-    deliver_policy: DeliverPolicy.All,
-  });
-}

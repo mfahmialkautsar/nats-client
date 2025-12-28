@@ -8,10 +8,9 @@ A VS Code workflow inspired by the HTTP Client: author `.nats` files, run CodeLe
 
 ## Highlights
 
-- **NATS-native scripts** – Parse `SUBSCRIBE`, `PUBLISH`, `REQUEST`, `REPLY`, and `JETSTREAM` blocks with headers, payloads, and metadata via `src/core/nats-document-parser.ts`.
-- **One-click execution** – `src/features/code-lens` attaches CodeLens controls that start or stop subscriptions, fire requests, publish payloads, and pull JetStream batches without switching focus.
+- **NATS-native scripts** – Parse `SUBSCRIBE`, `PUBLISH`, `REQUEST`, and `REPLY` blocks with headers, payloads, and metadata via `src/core/nats-document-parser.ts`.
+- **One-click execution** – `src/features/code-lens` attaches CodeLens controls that start or stop subscriptions, fire requests, publish payloads, and reply handlers without switching focus.
 - **Structured logging** – `OutputChannelRegistry` multiplexes per-subject logs while `appendLogBlock` groups meta data, headers, and payload previews in the primary output channel.
-- **JetStream tooling** – The `nats.jetStreamPull` command (see `register-jetstream-pull-command.ts`) hydrates durable pullers that honor timeout and batch headers.
 - **Environment-aware variables** – Manage secrets and templated tokens via the `NATS Variables` tree view backed by `VariableStore`, including `{{token}}` substitutions and `{{env:NAME}}` lookups.
 - **Status-aware sessions** – `StatusBarController` keeps an at-a-glance connection count, while `NatsSession` tracks active subscriptions and reply handlers so you can tear them down quickly.
 
@@ -30,7 +29,7 @@ Trace-Id: randomId()
 }
 ```
 
-- Headers prefixed with `NATS-` configure connection metadata (server overrides, JetStream durable names, batch sizes, etc.).
+- Headers prefixed with `NATS-` configure connection metadata (server overrides, etc.).
 - Trace headers (`Trace-Id`, `Responder-Id`, …) are forwarded to the server.
 - Variables defined in the tree view can be referenced via `{{token}}`; environment variables use `{{env:NAME}}`.
 - Use triple hashes (`###`) to separate multiple actions inside the same document.
@@ -41,7 +40,6 @@ Ready-to-run flows live under `examples/`:
 
 - `examples/pub-sub.nats` – two concurrent subscriptions plus matching publish blocks for quick smoke tests.
 - `examples/request-reply.nats` – combines reply handlers with literal and JSON requests, showing how `$msg` templates render responses.
-- `examples/jetstream-pull.nats` – demonstrates durable JetStream pulls (`NATS-Stream`, `NATS-Durable`, and `NATS-Batch`).
 
 Open an example, hover the CodeLens for the action you want, and execute the command to stream results into the output channel.
 
@@ -63,9 +61,9 @@ The extension contributes the following entry points:
 
 ## Configuration
 
-| Setting                       | Default | Description                                                                              |
-| ----------------------------- | ------- | ---------------------------------------------------------------------------------------- |
-| `natsClient.requestTimeoutMs` | `15000` | Fallback timeout for `REQUEST` and JetStream pull actions when `NATS-Timeout` is absent. |
+| Setting                       | Default | Description                                                           |
+| ----------------------------- | ------- | --------------------------------------------------------------------- |
+| `natsClient.requestTimeoutMs` | `15000` | Fallback timeout for `REQUEST` actions when `NATS-Timeout` is absent. |
 
 ## Development workflow
 

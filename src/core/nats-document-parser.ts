@@ -8,9 +8,6 @@ const COMMENT_PATTERN = /^\s*(#|\/\/)/;
 const META_HEADERS = new Set([
   "nats-server",
   "nats-timeout",
-  "nats-stream",
-  "nats-durable",
-  "nats-batch",
   "nats-reply-mode",
   "nats-subject",
 ]);
@@ -152,23 +149,6 @@ function parseActionFromBlock(
   }
 
   const timeoutMs = parseInteger(meta.get("nats-timeout"));
-  if (type === "jetstreamPull") {
-    if (!meta.get("nats-stream") || !meta.get("nats-durable")) {
-      return undefined;
-    }
-    const batchCandidate = parseInteger(meta.get("nats-batch")) ?? 1;
-    return {
-      type,
-      lineNumber: lines[requestIndex].lineNumber,
-      subject: meta.get("nats-stream") ?? "",
-      server: connection.server,
-      stream: meta.get("nats-stream") ?? undefined,
-      durable: meta.get("nats-durable") ?? undefined,
-      batchSize: Math.max(1, batchCandidate),
-      timeoutMs: timeoutMs,
-      headers: headers,
-      };
-  }
 
   if (!connection.subject) {
     return undefined;
@@ -362,8 +342,6 @@ function mapKeyword(keyword: string): NatsActionType | undefined {
       return "publish";
     case actionKeywords.reply:
       return "reply";
-    case actionKeywords.jetstreamPull:
-      return "jetstreamPull";
     default:
       return undefined;
   }

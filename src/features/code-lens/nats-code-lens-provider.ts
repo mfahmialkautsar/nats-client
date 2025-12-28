@@ -88,17 +88,6 @@ export class NatsCodeLensProvider implements vscode.CodeLensProvider {
           );
           break;
         }
-        case "jetstreamPull": {
-          const batch = action.batchSize ?? 1;
-          codeLenses.push(
-            new vscode.CodeLens(range, {
-              title: `Pull JetStream (batch ${batch})`,
-              command: "nats.jetStreamPull",
-              arguments: args,
-            }),
-          );
-          break;
-        }
         default:
           break;
       }

@@ -1,4 +1,4 @@
-import type { JetStreamClient, MsgHdrs } from "nats";
+import type { MsgHdrs } from "nats";
 
 export interface NatsConnectionInfo {
   client_id?: string | number;
@@ -40,7 +40,6 @@ export interface NatsConnectionLike {
     data: string | Uint8Array,
     options?: { timeout?: number; headers?: HeaderMap },
   ): Promise<MsgLike>;
-  jetstream?(): JetStreamClient;
   close(): Promise<void> | void;
   isClosed(): boolean;
   flush(): Promise<void>;
@@ -55,8 +54,3 @@ export interface NatsConnectOptions {
 export type NatsConnector = (
   options: NatsConnectOptions,
 ) => Promise<NatsConnectionLike>;
-
-export interface JetStreamPullOptions {
-  batchSize: number;
-  timeoutMs: number;
-}
