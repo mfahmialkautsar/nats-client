@@ -25,8 +25,9 @@ export class NatsCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(
     document: vscode.TextDocument,
   ): vscode.ProviderResult<vscode.CodeLens[]> {
+    const text = document.getText();
     const globalVariables = this.variableStore.getAllVariables();
-    const actions = parseNatsDocument(document.getText(), globalVariables);
+    const actions = parseNatsDocument(text, globalVariables);
     const codeLenses: vscode.CodeLens[] = [];
 
     for (const action of actions) {
@@ -141,7 +142,10 @@ export function registerCodeLensProvider(
   const provider = new NatsCodeLensProvider(session, variableStore);
   context.subscriptions.push(
     provider,
-    vscode.languages.registerCodeLensProvider({ pattern: FILE_GLOB }, provider),
+    vscode.languages.registerCodeLensProvider(
+      [{ pattern: FILE_GLOB }, { scheme: "untitled", language: "nats" }],
+      provider,
+    ),
   );
   return provider;
 }
