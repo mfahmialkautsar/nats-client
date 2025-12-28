@@ -298,6 +298,7 @@
     "test:watch": "vitest watch --exclude tests/e2e",
     "test:e2e": "vitest run tests/e2e",
     "integration:test": "vscode-test",
+    "test:integration": "bun run tsc -p tsconfig.test.json && node out/src/test/runTest.js",
     "verify": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
