@@ -9,8 +9,8 @@ import {
 } from "vitest";
 import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer } from "testcontainers";
-import { TestSink } from "@tests/helpers/test-sink";
 import { MockMemento } from "@tests/helpers/mock-memento";
+import { EXAMPLES } from "@tests/helpers/read-example";
 
 // Mock vscode module
 vi.mock("vscode", () => {
@@ -83,17 +83,28 @@ describe("Nats Files E2E", () => {
   });
 
   it("should resolve variables in connection string and subject", async () => {
-    const natsFileContent = `
+    let pubSubExample = EXAMPLES.PUB_SUB;
+    // Replace hardcoded URL with variables to test resolution
+    pubSubExample = pubSubExample.replaceAll(
+      "nats://localhost:4222/lab.metrics",
+      "{{url}}/{{subject}}",
+    );
+
+    const natsFileContentWithVariables = `
 @url = ${natsUrl}
 @subject = test.variable
 
-PUBLISH {{url}}/{{subject}}
-Payload
+${pubSubExample}
 `;
-    // We pass content as filePath because of our mock
+
+    const lines = natsFileContentWithVariables.split("\n");
+    const publishLineIndex = lines.findIndex((line) =>
+      line.startsWith("PUBLISH"),
+    );
+
     const action = await resolveAction(
-      natsFileContent,
-      5,
+      natsFileContentWithVariables,
+      publishLineIndex + 1,
       "publish",
       variableStore!,
     );
@@ -105,9 +116,9 @@ Payload
     expect(action).toBeDefined();
     expect(action.server).toBe(natsUrl);
     expect(action.subject).toBe("test.variable");
-    expect(action.data).toBe("Payload");
+    // The payload in example is JSON, check if it's preserved
+    expect(action.data).toContain('"type": "cpu"');
 
-    const sink = new TestSink();
     const result = await session!.publish(
       action.server ?? "",
       action.subject ?? "",
@@ -122,13 +133,23 @@ Payload
     await variableStore!.set("global_url", natsUrl);
     await variableStore!.set("global_subject", "test.global");
 
+    let pubSubExample = EXAMPLES.PUB_SUB;
+    pubSubExample = pubSubExample.replaceAll(
+      "nats://localhost:4222/lab.metrics",
+      "{{global_url}}/{{global_subject}}",
+    );
+
     const natsFileContent = `
-PUBLISH {{global_url}}/{{global_subject}}
-Global Payload
+${pubSubExample}
 `;
+    const lines = natsFileContent.split("\n");
+    const publishLineIndex = lines.findIndex((line) =>
+      line.startsWith("PUBLISH"),
+    );
+
     const action = await resolveAction(
       natsFileContent,
-      2,
+      publishLineIndex + 1,
       "publish",
       variableStore!,
     );
@@ -151,25 +172,36 @@ Global Payload
   });
 
   it("should resolve variables in headers and body", async () => {
+    let pubSubExample = EXAMPLES.PUB_SUB;
+    pubSubExample = pubSubExample
+      .replace(
+        /\{[\s\S]*?\}/, // Replace JSON body first
+        "Body: {{body_val}}",
+      )
+      .replaceAll("nats://localhost:4222/lab.metrics", "{{url}}/test.content")
+      .replace("Trace-Id: randomId()", "X-Header: {{header_val}}");
+
     const natsFileContent = `
 @url = ${natsUrl}
 @header_val = my-header-value
 @body_val = my-body-value
 
-PUBLISH {{url}}/test.content
-X-Header: {{header_val}}
-
-Body: {{body_val}}
+${pubSubExample}
 `;
+    const lines = natsFileContent.split("\n");
+    const publishLineIndex = lines.findIndex((line) =>
+      line.startsWith("PUBLISH"),
+    );
+
     const action = await resolveAction(
       natsFileContent,
-      6,
+      publishLineIndex + 1,
       "publish",
       variableStore!,
     );
 
     expect(action).toBeDefined();
-    expect(action?.headers?.["X-Header"]).toBe("my-header-value");
-    expect(action?.data).toContain("Body: my-body-value");
+    expect(action!.headers!["X-Header"]).toBe("my-header-value");
+    expect(action!.data).toContain("Body: my-body-value");
   });
 });
