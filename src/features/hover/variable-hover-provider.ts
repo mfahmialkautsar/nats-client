@@ -7,7 +7,6 @@ export class VariableHoverProvider implements vscode.HoverProvider {
   provideHover(
     document: vscode.TextDocument,
     position: vscode.Position,
-    token: vscode.CancellationToken,
   ): vscode.ProviderResult<vscode.Hover> {
     const range = document.getWordRangeAtPosition(position, /\{\{[^}]+\}\}/);
     if (!range) {
