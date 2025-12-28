@@ -14,6 +14,7 @@ import { NatsSession } from "@/services/nats-session";
 import { createDefaultConnector } from "@/services/nats-connector";
 import { TestSink } from "@tests/helpers/test-sink";
 import { waitFor } from "@tests/helpers/wait-for";
+import { MockMemento } from "@tests/helpers/mock-memento";
 
 const STREAM_NAME = "E2E_STREAM";
 const CONSUMER_NAME = "E2E_CONSUMER";
@@ -31,7 +32,7 @@ describe("NatsSession e2e (Testcontainers)", () => {
       .start();
     const port = container.getMappedPort(4222);
     natsUrl = `nats://127.0.0.1:${port}`;
-    session = new NatsSession(createDefaultConnector());
+    session = new NatsSession(createDefaultConnector(), new MockMemento());
     helperConnection = await connect({ servers: natsUrl });
   }, 20_000);
 

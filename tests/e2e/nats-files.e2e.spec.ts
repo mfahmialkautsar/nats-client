@@ -10,6 +10,7 @@ import {
 import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer } from "testcontainers";
 import { TestSink } from "@tests/helpers/test-sink";
+import { MockMemento } from "@tests/helpers/mock-memento";
 
 // Mock vscode module
 vi.mock("vscode", () => {
@@ -58,12 +59,13 @@ describe("Nats Files E2E", () => {
       .start();
     const port = container.getMappedPort(4222);
     natsUrl = `nats://127.0.0.1:${port}`;
-    session = new NatsSession(createDefaultConnector());
+    session = new NatsSession(createDefaultConnector(), new MockMemento());
 
     // Mock Memento
     const memento: vscode.Memento = {
       get: <T>(key: string, defaultValue?: T) => defaultValue,
       update: () => Promise.resolve(),
+      keys: () => [],
     };
 
     const emitterFactory = () => ({

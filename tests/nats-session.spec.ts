@@ -11,6 +11,26 @@ import type {
   SubscriptionLike,
 } from "@/services/nats-types";
 import { TestSink } from "@tests/helpers/test-sink";
+import type { Memento } from "vscode";
+
+class MockMemento implements Memento {
+  private storage = new Map<string, unknown>();
+
+  get<T>(key: string): T | undefined;
+  get<T>(key: string, defaultValue: T): T;
+  get(key: string, defaultValue?: unknown) {
+    return this.storage.get(key) ?? defaultValue;
+  }
+
+  update(key: string, value: unknown): Thenable<void> {
+    this.storage.set(key, value);
+    return Promise.resolve();
+  }
+
+  keys(): readonly string[] {
+    return Array.from(this.storage.keys());
+  }
+}
 
 class FakeConnection implements NatsConnectionLike {
   info = { client_id: "client", host: "localhost", port: 4222 };
@@ -591,7 +611,11 @@ describe("interpolateTemplate", () => {
 
 function buildSession(now?: () => Date) {
   const connection = new FakeConnection();
-  const session = new NatsSession(createConnector(connection), now);
+  const session = new NatsSession(
+    createConnector(connection),
+    new MockMemento(),
+    now,
+  );
   return { connection, session };
 }
 
