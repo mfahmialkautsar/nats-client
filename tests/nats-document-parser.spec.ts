@@ -93,6 +93,36 @@ describe("parseNatsDocument", () => {
     expect(action.data).toBe('{"value":1}');
   });
 
+  it("parses jetstream publish commands", () => {
+    const text = `JSPUBLISH nats://demo.nats.io/orders.new
+NATS-Stream: orders
+    
+{"id": 1}`;
+    const [action] = parseNatsDocument(text);
+    expect(action?.type).toBe("jetstreamPublish");
+    expect(action?.subject).toBe("orders.new");
+    expect(action?.stream).toBe("orders");
+    expect(action?.data).toContain('"id": 1');
+  });
+
+  it("parses jetstream consume commands with stream/consumer path", () => {
+    const text = `JSCONSUME nats://demo.nats.io/orders/consumer`;
+    const [action] = parseNatsDocument(text);
+    expect(action?.type).toBe("jetstreamConsume");
+    expect(action?.stream).toBe("orders");
+    expect(action?.durable).toBe("consumer");
+  });
+
+  it("parses jetstream consume commands with metadata", () => {
+    const text = `JSCONSUME nats://demo.nats.io
+NATS-Stream: orders
+NATS-Durable: consumer`;
+    const [action] = parseNatsDocument(text);
+    expect(action?.type).toBe("jetstreamConsume");
+    expect(action?.stream).toBe("orders");
+    expect(action?.durable).toBe("consumer");
+  });
+
   it("derives subject and server from metadata when the command omits them", () => {
     const text = `REQUEST
 NATS-Server: nats://demo.nats.io
