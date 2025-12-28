@@ -8,6 +8,9 @@ const COMMENT_PATTERN = /^\s*(#|\/\/)/;
 const META_HEADERS = new Set([
   "nats-server",
   "nats-timeout",
+  "nats-stream",
+  "nats-durable",
+  "nats-batch",
   "nats-reply-mode",
   "nats-subject",
 ]);
@@ -150,6 +153,54 @@ function parseActionFromBlock(
 
   const timeoutMs = parseInteger(meta.get("nats-timeout"));
 
+  if (type === "jetstreamPublish") {
+    const stream = meta.get("nats-stream");
+    return {
+      type,
+      lineNumber: lines[requestIndex].lineNumber,
+      subject: connection.subject ?? "",
+      server: connection.server,
+      stream: stream,
+      data: body,
+      headers,
+      timeoutMs,
+    };
+  }
+
+  if (type === "jetstreamConsume") {
+    // Parse JSCONSUME stream/consumer or use headers
+    const stream = meta.get("nats-stream");
+    const durable = meta.get("nats-durable");
+
+    if (stream && durable) {
+      return {
+        type,
+        lineNumber: lines[requestIndex].lineNumber,
+        subject: "",
+        server: connection.server,
+        stream,
+        durable,
+        headers,
+      };
+    }
+
+    // Try to parse from subject path: stream/consumer
+    const pathParts = connection.subject?.split("/") ?? [];
+    if (pathParts.length === 2) {
+      return {
+        type,
+        lineNumber: lines[requestIndex].lineNumber,
+        subject: "",
+        server: connection.server,
+        stream: pathParts[0],
+        durable: pathParts[1],
+        headers,
+      };
+    }
+
+    return undefined;
+  }
+
   if (!connection.subject) {
     return undefined;
   }
@@ -268,9 +319,7 @@ function resolveConnection(
   if (url) {
     const server = buildServerUrl(url);
     const subject = decodeSubject(url.pathname) ?? meta.get("nats-subject");
-    if (!subject) {
-      return undefined;
-    }
+    // Subject is optional for some commands
     return { subject, server };
   }
 
@@ -279,9 +328,7 @@ function resolveConnection(
     return undefined;
   }
   const subject = candidateSubject || meta.get("nats-subject");
-  if (!subject) {
-    return undefined;
-  }
+  // Subject is optional for some commands
   return { subject, server: serverHeader };
 }
 
@@ -342,6 +389,11 @@ function mapKeyword(keyword: string): NatsActionType | undefined {
       return "publish";
     case actionKeywords.reply:
       return "reply";
+
+    case actionKeywords.jetstreamPublish:
+      return "jetstreamPublish";
+    case actionKeywords.jetstreamConsume:
+      return "jetstreamConsume";
     default:
       return undefined;
   }
