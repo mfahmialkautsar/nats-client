@@ -64,8 +64,65 @@
         "title": "NATS: Stop Reply Handler"
       },
       {
+        "command": "nats.jetstreamPublish",
+        "title": "NATS: JetStream Publish"
+      },
+      {
+        "command": "nats.startJetStreamConsume",
+        "title": "NATS: Start JetStream Consume"
+      },
+      {
+        "command": "nats.stopJetStreamConsume",
+        "title": "NATS: Stop JetStream Consume"
+      },
+      {
         "command": "nats.showOutput",
         "title": "NATS: Show Output"
+      },
+      {
+        "command": "nats.jetStreamExplorer.refresh",
+        "title": "NATS: Refresh JetStream Explorer",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "nats.jetStreamExplorer.createStream",
+        "title": "NATS: Create Stream",
+        "icon": "$(add)"
+      },
+      {
+        "command": "nats.jetStreamExplorer.deleteStream",
+        "title": "NATS: Delete Stream",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "nats.jetStreamExplorer.createConsumer",
+        "title": "NATS: Create Consumer",
+        "icon": "$(add)"
+      },
+      {
+        "command": "nats.jetStreamExplorer.deleteConsumer",
+        "title": "NATS: Delete Consumer",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "nats.jetStreamExplorer.updateStream",
+        "title": "NATS: Update Stream",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "nats.jetStreamExplorer.updateConsumer",
+        "title": "NATS: Update Consumer",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "nats.jetStreamExplorer.viewStreamInfo",
+        "title": "NATS: View Stream Info",
+        "icon": "$(info)"
+      },
+      {
+        "command": "nats.jetStreamExplorer.viewConsumerInfo",
+        "title": "NATS: View Consumer Info",
+        "icon": "$(info)"
       },
       {
         "command": "nats.showSubscriptions",
@@ -148,6 +205,10 @@
         {
           "id": "natsVariablesView",
           "name": "NATS Variables"
+        },
+        {
+          "id": "natsJetStreamExplorer",
+          "name": "JetStream Explorer"
         }
       ]
     },
@@ -216,9 +277,47 @@
         {
           "command": "nats.connections.reset",
           "when": "false"
+        },
+        {
+          "command": "nats.jetStreamExplorer.createStream",
+          "when": "false"
+        },
+        {
+          "command": "nats.jetStreamExplorer.deleteStream",
+          "when": "false"
+        },
+        {
+          "command": "nats.jetStreamExplorer.updateStream",
+          "when": "false"
+        },
+        {
+          "command": "nats.jetStreamExplorer.createConsumer",
+          "when": "false"
+        },
+        {
+          "command": "nats.jetStreamExplorer.deleteConsumer",
+          "when": "false"
+        },
+        {
+          "command": "nats.jetStreamExplorer.updateConsumer",
+          "when": "false"
+        },
+        {
+          "command": "nats.jetStreamExplorer.viewStreamInfo",
+          "when": "false"
+        },
+        {
+          "command": "nats.jetStreamExplorer.viewConsumerInfo",
+          "when": "false"
         }
       ],
       "view/title": [
+        {
+          "command": "nats.jetStreamExplorer.refresh",
+          "when": "view == natsJetStreamExplorer",
+          "group": "navigation",
+          "icon": "$(refresh)"
+        },
         {
           "command": "nats.variables.view.addEnvironment",
           "when": "view == natsVariablesView",
@@ -233,6 +332,36 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "nats.jetStreamExplorer.createStream",
+          "when": "view == natsJetStreamExplorer && viewItem == serverNode",
+          "group": "inline"
+        },
+        {
+          "command": "nats.jetStreamExplorer.viewStreamInfo",
+          "when": "view == natsJetStreamExplorer && viewItem == streamNode",
+          "group": "inline@1"
+        },
+        {
+          "command": "nats.jetStreamExplorer.deleteStream",
+          "when": "view == natsJetStreamExplorer && viewItem == streamNode",
+          "group": "inline@3"
+        },
+        {
+          "command": "nats.jetStreamExplorer.createConsumer",
+          "when": "view == natsJetStreamExplorer && viewItem == streamNode",
+          "group": "inline@4"
+        },
+        {
+          "command": "nats.jetStreamExplorer.viewConsumerInfo",
+          "when": "view == natsJetStreamExplorer && viewItem == consumerNode",
+          "group": "inline@1"
+        },
+        {
+          "command": "nats.jetStreamExplorer.deleteConsumer",
+          "when": "view == natsJetStreamExplorer && viewItem == consumerNode",
+          "group": "inline@3"
+        },
         {
           "command": "nats.variables.view.setActiveEnvironment",
           "when": "view == natsVariablesView && viewItem == natsEnvironment",
