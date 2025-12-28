@@ -11,7 +11,7 @@ import type {
   NatsConnector,
   SubscriptionLike,
 } from "@/services/nats-types";
-import { EventEmitter } from "vscode";
+import { EventEmitter, type Memento } from "vscode";
 
 interface SubscriptionContext {
   subject: string;
@@ -35,20 +35,67 @@ export interface RequestOptions {
   timeoutMs: number;
 }
 
+export interface SavedConnection {
+  name: string;
+  serverUrl: string;
+}
+
 export class NatsSession {
   private readonly connections = new Map<string, ManagedConnection>();
   private readonly subscriptions = new Map<string, SubscriptionContext>();
   private readonly replies = new Map<string, SubscriptionContext>();
   private readonly subscriptionCounts = new Map<string, number>();
   private readonly replyCounts = new Map<string, number>();
+private readonly savedConnections: SavedConnection[] = [];
 
   private readonly _onDidChangeConnection = new EventEmitter<void>();
   public readonly onDidChangeConnection = this._onDidChangeConnection.event;
 
   constructor(
     private readonly connector: NatsConnector,
+private readonly state: Memento,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) {
+    this.savedConnections = this.state.get<SavedConnection[]>(
+      "nats.savedConnections",
+      [],
+    );
+  }
+
+  getSavedConnections(): SavedConnection[] {
+    return [...this.savedConnections];
+  }
+
+  async saveConnection(connection: SavedConnection): Promise<void> {
+    const index = this.savedConnections.findIndex(
+      (c) => c.name === connection.name,
+    );
+    if (index >= 0) {
+      this.savedConnections[index] = connection;
+    } else {
+      this.savedConnections.push(connection);
+    }
+    await this.state.update("nats.savedConnections", this.savedConnections);
+    this._onDidChangeConnection.fire();
+  }
+
+  async deleteConnection(name: string): Promise<void> {
+    const index = this.savedConnections.findIndex((c) => c.name === name);
+    if (index >= 0) {
+      this.savedConnections.splice(index, 1);
+      await this.state.update("nats.savedConnections", this.savedConnections);
+      this._onDidChangeConnection.fire();
+    }
+  }
+
+  async connect(url: string): Promise<void> {
+    await this.getConnection(url);
+  }
+
+  isConnectionActive(rawUrl: string): boolean {
+    const serverKey = this.normalizeServerUrl(rawUrl);
+    return this.getConnectionStatus(serverKey) === "connected";
+  }
 
   async startSubscription(
     serverUrl: string,
@@ -287,10 +334,17 @@ export class NatsSession {
     );
     this.connections.clear();
     await Promise.allSettled(closings);
+this._onDidChangeConnection.fire();
   }
 
   connectionCount(): number {
-    return this.connections.size;
+    let count = 0;
+    for (const conn of Array.from(this.connections.values())) {
+      if (!conn.markedClosed && !conn.connection.isClosed()) {
+        count++;
+      }
+    }
+    return count;
   }
 
   listConnections(): Array<{
@@ -333,7 +387,6 @@ export class NatsSession {
     if (!existing) {
       throw new Error(`No connection found for server: ${serverKey}`);
     }
-
     const subsToReconnect: Array<{
       key: string;
       subject: string;

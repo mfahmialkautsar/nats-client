@@ -27,8 +27,13 @@ let session: NatsSession;
 let channelRegistry: OutputChannelRegistry;
 let statusBar: StatusBarController;
 
+export type ExtensionAPI = {
+  session: NatsSession;
+  channelRegistry: OutputChannelRegistry;
+};
+
 export async function activate(context: vscode.ExtensionContext) {
-  session = new NatsSession(createDefaultConnector());
+  session = new NatsSession(createDefaultConnector(), context.globalState);
   channelRegistry = new OutputChannelRegistry(
     createVsCodeChannelFactory(),
     "NATS",
