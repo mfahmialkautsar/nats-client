@@ -254,8 +254,8 @@
         },
         {
           "command": "nats.variables.view.deleteEnvironment",
-          "when": "view == natsVariablesView && viewItem == natsEnvironment",
-          "group": "inline@3"
+          "when": "view == natsVariablesView && viewItem == environment",
+          "group": "inline"
         },
         {
           "command": "nats.variables.view.editVariable",
