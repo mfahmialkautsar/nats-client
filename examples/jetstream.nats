@@ -1,0 +1,33 @@
+# JetStream Example
+# This file demonstrates how to use the new JetStream features in the NATS client.
+
+# Define variables for reuse
+@url = nats://localhost:4222
+@stream = orders
+@subject = orders.new
+@consumer = monitor
+
+# 1. Publish a message to a JetStream stream
+# The JSPUBLISH command ensures the message is persisted.
+JSPUBLISH {{url}}/{{subject}}
+NATS-Stream: {{stream}}
+
+{
+  "id": "order-123",
+  "status": "created"
+}
+
+###
+
+# 2. Consume from a JetStream consumer
+# This will start consuming from the specified stream and consumer.
+# You can use the path syntax: stream/consumer
+JSCONSUME {{url}}/{{stream}}/{{consumer}}
+
+###
+
+# 3. Consume using metadata headers
+# Alternatively, you can specify stream and durable name in headers.
+JSCONSUME {{url}}
+NATS-Stream: {{stream}}
+NATS-Durable: {{consumer}}
