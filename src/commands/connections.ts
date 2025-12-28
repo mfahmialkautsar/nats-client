@@ -1,73 +1,56 @@
 import * as vscode from "vscode";
 import type { CommandContext } from "./context";
 import { handleError } from "./utils";
+import type { SavedConnection } from "@/services/nats-session";
 
 export async function connectionsMenu(ctx: CommandContext) {
   try {
-    const connections = ctx.session.listConnections();
-    if (connections.length === 0) {
-      vscode.window.showInformationMessage("No active connections");
-      return;
-    }
-
-    const subscriptions = ctx.session.listSubscriptions();
-    const replyHandlers = ctx.session.listReplyHandlers();
+    const savedConnections = ctx.session.getSavedConnections();
+    const activeConnections = ctx.session.listConnections();
 
     const items: vscode.QuickPickItem[] = [
       {
+        label: "$(add) Add Connection",
+        description: "Save a new connection profile",
+        detail: "add-connection",
+      },
+      {
         label: "$(sync) Reset all connections",
-        description: "Close and clear all connections",
+        description: "Close and clear all active connections",
         detail: "reset-all",
       },
-      { label: "", kind: vscode.QuickPickItemKind.Separator },
-      ...connections.map((conn) => {
-        const statusIcon =
-          conn.status === "connected" ? "$(check)" : "$(circle-slash)";
-        const statusText = conn.status === "connected" ? "Connected" : "Closed";
-
-        const connSubs = subscriptions.filter((s) => s.server === conn.server);
-        const connReplies = replyHandlers.filter(
-          (r) => r.server === conn.server,
-        );
-        const handlerCount = connSubs.length + connReplies.length;
-        const handlerText = handlerCount > 0 ? ` (${handlerCount} active)` : "";
-
-        return {
-          label: `${statusIcon} ${conn.server}${handlerText}`,
-          description: statusText,
-          detail: conn.server,
-        };
-      }),
     ];
 
-    if (subscriptions.length > 0) {
-      items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    if (savedConnections.length > 0) {
       items.push({
-        label: `$(list-ordered) Subscriptions (${subscriptions.length})`,
-        description: "",
-        detail: "subscriptions-header",
+        label: "Saved Connections",
+        kind: vscode.QuickPickItemKind.Separator,
       });
-      for (const sub of subscriptions) {
+      for (const conn of savedConnections) {
+        const isActive = ctx.session.isConnectionActive(conn.serverUrl);
         items.push({
-          label: `  ${sub.subject}`,
-          description: sub.server,
-          detail: `sub:${sub.key}`,
+          label: `${isActive ? "$(check)" : "$(circle-slash)"} ${conn.name}`,
+          description: conn.serverUrl,
+          detail: `saved:${conn.name}`,
         });
       }
     }
 
-    if (replyHandlers.length > 0) {
-      items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    // Also show active connections that are NOT in saved list (ad-hoc)
+    const adHocConnections = activeConnections.filter((c) => {
+      return !savedConnections.some((s) => s.serverUrl === c.url);
+    });
+
+    if (adHocConnections.length > 0) {
       items.push({
-        label: `$(comment) Reply Handlers (${replyHandlers.length})`,
-        description: "",
-        detail: "replies-header",
+        label: "Ad-hoc Connections",
+        kind: vscode.QuickPickItemKind.Separator,
       });
-      for (const reply of replyHandlers) {
+      for (const conn of adHocConnections) {
         items.push({
-          label: `  ${reply.subject}`,
-          description: reply.server,
-          detail: `reply:${reply.key}`,
+          label: `$(check) ${conn.server}`,
+          description: "Active (Not Saved)",
+          detail: `active:${conn.server}`,
         });
       }
     }
@@ -77,6 +60,11 @@ export async function connectionsMenu(ctx: CommandContext) {
     });
 
     if (!selection) {
+      return;
+    }
+
+    if (selection.detail === "add-connection") {
+      await addConnection(ctx);
       return;
     }
 
@@ -91,83 +79,132 @@ export async function connectionsMenu(ctx: CommandContext) {
       return;
     }
 
-    if (selection.detail?.startsWith("sub:")) {
-      const key = selection.detail.substring(4);
-      const sub = subscriptions.find((s) => s.key === key);
-      if (!sub) {
-        return;
-      }
-
-      const confirm = await vscode.window.showWarningMessage(
-        `Stop subscription to ${sub.subject}?`,
-        { modal: true },
-        "Stop",
-      );
-      if (confirm === "Stop") {
-        ctx.session.stopSubscription(key);
-        ctx.channelRegistry.release(key);
-        ctx.codeLensProvider.refresh();
-        ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
-        vscode.window.showInformationMessage(
-          `Stopped subscription to ${sub.subject}`,
-        );
+    if (selection.detail?.startsWith("saved:")) {
+      const name = selection.detail.substring(6);
+      const conn = savedConnections.find((c) => c.name === name);
+      if (conn) {
+        await manageSavedConnection(ctx, conn);
       }
       return;
     }
 
-    if (selection.detail?.startsWith("reply:")) {
-      const key = selection.detail.substring(6);
-      const reply = replyHandlers.find((r) => r.key === key);
-      if (!reply) {
-        return;
-      }
-
-      const confirm = await vscode.window.showWarningMessage(
-        `Stop reply handler for ${reply.subject}?`,
-        { modal: true },
-        "Stop",
+    if (selection.detail?.startsWith("active:")) {
+      const server = selection.detail.substring(7);
+      const conn = activeConnections.find((c) => c.server === server);
+      if (conn) {
+        const action = await vscode.window.showQuickPick(
+          [{ label: "Disconnect", description: "Close connection" }],
+          { placeHolder: `Action for ${server}` },
         );
-      if (confirm === "Stop") {
-        ctx.session.stopReplyHandler(key);
-        ctx.channelRegistry.release(key);
-        ctx.codeLensProvider.refresh();
+        if (action?.label === "Disconnect") {
+          ctx.session.markConnectionClosed(server);
           ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
-        vscode.window.showInformationMessage(
-          `Stopped reply handler for ${reply.subject}`,
-        );
+          vscode.window.showInformationMessage(`Disconnected from ${server}`);
+        }
       }
       return;
-    }
-
-    // If it's a connection
-    const conn = connections.find((c) => c.server === selection.detail);
-    if (conn) {
-      const actions: vscode.QuickPickItem[] = [
-        { label: "Show Output", description: "Reveal output channel" },
-      ];
-      if (conn.status === "connected") {
-        actions.push({
-          label: "Close Connection",
-          description: "Disconnect from server",
-        });
-      }
-
-      const action = await vscode.window.showQuickPick(actions, {
-        placeHolder: `Action for ${conn.server}`,
-      });
-
-      if (action?.label === "Show Output") {
-        ctx.channelRegistry.main().show(true);
-      } else if (action?.label === "Close Connection") {
-        ctx.session.markConnectionClosed(conn.server);
-        ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
-        vscode.window.showInformationMessage(
-          `Closed connection to ${conn.server}`,
-        );
-      }
     }
   } catch (error) {
     handleError(ctx, error, "Connections menu error");
+  }
+}
+
+async function addConnection(ctx: CommandContext) {
+  const name = await vscode.window.showInputBox({
+    prompt: "Connection Name",
+    placeHolder: "Local NATS",
+  });
+  if (!name) {
+    return;
+  }
+  const url = await vscode.window.showInputBox({
+    prompt: "Server URL",
+    placeHolder: "nats://localhost:4222",
+    value: "nats://localhost:4222",
+  });
+  if (!url) {
+    return;
+  }
+
+  await ctx.session.saveConnection({ name, serverUrl: url });
+  vscode.window.showInformationMessage(`Connection '${name}' saved.`);
+  // Re-open menu
+  connectionsMenu(ctx);
+}
+
+async function manageSavedConnection(
+  ctx: CommandContext,
+  conn: SavedConnection,
+) {
+  const isActive = ctx.session.isConnectionActive(conn.serverUrl);
+
+  const items: vscode.QuickPickItem[] = [];
+
+  if (isActive) {
+    items.push({ label: "$(plug) Disconnect", detail: "disconnect" });
+  } else {
+    items.push({ label: "$(plug) Connect", detail: "connect" });
+  }
+  items.push({ label: "$(edit) Edit", detail: "edit" });
+  items.push({ label: "$(trash) Delete", detail: "delete" });
+
+  const selection = await vscode.window.showQuickPick(items, {
+    placeHolder: `Manage '${conn.name}'`,
+  });
+  if (!selection) {
+    return;
+  }
+
+  if (selection.detail === "connect") {
+    try {
+      await ctx.session.connect(conn.serverUrl);
+      ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
+      vscode.window.showInformationMessage(`Connected to ${conn.name}`);
+    } catch (e) {
+      handleError(ctx, e, `Failed to connect to ${conn.name}`);
+    }
+  } else if (selection.detail === "disconnect") {
+    const activeConn = ctx.session
+      .listConnections()
+      .find((c) => c.url === conn.serverUrl);
+    if (activeConn) {
+      ctx.session.markConnectionClosed(activeConn.server);
+      ctx.statusBar.updateConnectionCount(ctx.session.connectionCount());
+      vscode.window.showInformationMessage(`Disconnected from ${conn.name}`);
+    }
+  } else if (selection.detail === "edit") {
+    const name = await vscode.window.showInputBox({
+      prompt: "Connection Name",
+      value: conn.name,
+    });
+    if (!name) {
+      return;
+    }
+    const url = await vscode.window.showInputBox({
+      prompt: "Server URL",
+      value: conn.serverUrl,
+    });
+    if (!url) {
+      return;
+    }
+
+    if (name !== conn.name) {
+      await ctx.session.deleteConnection(conn.name);
+    }
+    await ctx.session.saveConnection({ name, serverUrl: url });
+    vscode.window.showInformationMessage(`Connection '${name}' updated.`);
+  } else if (selection.detail === "delete") {
+    const confirm = await vscode.window.showWarningMessage(
+      `Are you sure you want to delete '${conn.name}'?`,
+      { modal: true },
+      "Delete",
+    );
+    if (confirm === "Delete") {
+      await ctx.session.deleteConnection(conn.name);
+      vscode.window.showInformationMessage(
+        `Connection '${conn.name}' deleted.`,
+      );
+    }
   }
 }
 
