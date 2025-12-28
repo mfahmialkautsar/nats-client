@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer } from "testcontainers";
-import { StringCodec, connect, headers as createHeaders } from "nats";
+import { StringCodec, connect } from "nats";
 import { NatsSession } from "@/services/nats-session";
 import { createDefaultConnector } from "@/services/nats-connector";
 import { TestSink } from "@tests/helpers/test-sink";
@@ -138,7 +138,7 @@ describe("NatsSession connection resilience e2e", () => {
 
     const responseItem = log.items.find((it) => it.title === "Response");
     expect(responseItem).toBeDefined();
-    expect(responseItem?.body).toContain("ok");
+    expect(responseItem!.body).toContain("ok");
 
     // Cleanup
     session!.stopSubscription("resilience-sub");

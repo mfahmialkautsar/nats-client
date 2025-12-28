@@ -88,7 +88,7 @@ describe("NatsSession e2e (Testcontainers)", () => {
 
     const responseItem = log.items.find((it) => it.title === "Response");
     expect(responseItem).toBeDefined();
-    expect(responseItem?.body).toContain('"greeting":"Hello Requestor"');
+    expect(responseItem!.body).toContain('"greeting":"Hello Requestor"');
     // Ensure headers from request and response are present in the returned items
     const hasContentType = log.items.some(
       (it) => it.headers && it.headers["Trace-Id"] === "trace-id-123",
