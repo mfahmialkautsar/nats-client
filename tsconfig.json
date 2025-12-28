@@ -21,7 +21,8 @@
     "src/**/*.ts",
     "tests/**/*.ts",
     "eslint.config.mjs",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    ".vscode-test.mjs"
   ],
   "exclude": ["node_modules", "out"]
 }
