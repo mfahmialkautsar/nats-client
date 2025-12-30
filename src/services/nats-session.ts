@@ -735,12 +735,20 @@ export class NatsSession {
   }
 
   private buildConnectOptions(url: string): NatsConnectOptions {
-    const parsed = new URL(url);
-    const host = `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}`;
+    const { protocol, hostname, port, username, password } = new URL(url);
+    const host = `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+
+    const auth = Boolean(password) ?
+      Boolean(username) ? {
+        user: username,
+        pass: password
+      } : {
+        token: password
+      } : {}
+    
     return {
       servers: [host],
-      user: parsed.username || undefined,
-      pass: parsed.password || undefined,
+      ...auth
     };
   }
 
