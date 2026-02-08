@@ -1,10 +1,9 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import type { NatsAction, NatsActionType } from "@/core/nats-actions";
 import { actionKeywords } from "@/core/nats-actions";
 
 const RANDOM_ID_PATTERN = /randomId\(\)/gi;
-const BLOCK_DELIMITER = /^\s*#{3,}.*$/;
-const COMMENT_PATTERN = /^\s*(#|\/\/)/;
+const COMMENT_PATTERN = /^\s*(?:#|\/\/)/;
 const META_HEADERS = new Set([
   "nats-server",
   "nats-timeout",
@@ -66,7 +65,7 @@ function resolveVariables(
   text: string,
   variables: Record<string, string>,
 ): string {
-  return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+  return text.replaceAll(/\{\{([\w.-]+)\}\}/g, (match, key) => {
     const trimmedKey = key.trim();
     if (trimmedKey.startsWith("env:")) {
       const envName = trimmedKey.slice(4);
@@ -100,7 +99,7 @@ export function segmentNatsDocument(text: string): NatsDocumentSegment[] {
 
   for (let index = 0; index < lines.length; index++) {
     const raw = lines[index];
-    if (BLOCK_DELIMITER.test(raw)) {
+    if (raw.trimStart().startsWith("###")) {
       flushBlock();
       segments.push({
         kind: "delimiter",
@@ -118,6 +117,85 @@ export function segmentNatsDocument(text: string): NatsDocumentSegment[] {
   }
 
   return segments;
+}
+
+function createJetStreamPublishAction(
+  lineNumber: number,
+  connection: { server: string; subject?: string },
+  meta: Map<string, string>,
+  body: string | undefined,
+  headers: Record<string, string> | undefined,
+  timeoutMs: number | undefined,
+): NatsAction {
+  const stream = meta.get("nats-stream");
+  return {
+    type: "jetstreamPublish",
+    lineNumber,
+    subject: connection.subject ?? "",
+    server: connection.server,
+    stream: stream,
+    data: body,
+    headers,
+    timeoutMs,
+  };
+}
+
+function createJetStreamConsumeAction(
+  lineNumber: number,
+  connection: { server: string; subject?: string },
+  meta: Map<string, string>,
+  headers: Record<string, string> | undefined,
+): NatsAction | undefined {
+  const stream = meta.get("nats-stream");
+  const durable = meta.get("nats-durable");
+
+  if (stream && durable) {
+    return {
+      type: "jetstreamConsume",
+      lineNumber,
+      subject: "",
+      server: connection.server,
+      stream,
+      durable,
+      headers,
+    };
+  }
+
+  const pathParts = connection.subject?.split("/") ?? [];
+  if (pathParts.length === 2) {
+    return {
+      type: "jetstreamConsume",
+      lineNumber,
+      subject: "",
+      server: connection.server,
+      stream: pathParts[0],
+      durable: pathParts[1],
+      headers,
+    };
+  }
+
+  return undefined;
+}
+
+function createReplyAction(
+  lineNumber: number,
+  connection: { server: string; subject?: string },
+  meta: Map<string, string>,
+  body: string | undefined,
+  headers: Record<string, string> | undefined,
+): NatsAction {
+  const replyMode = (meta.get("nats-reply-mode") ?? "").toLowerCase();
+  const templateMode =
+    replyMode === "template" || (!replyMode && !looksLikeJson(body));
+  return {
+    type: "reply",
+    lineNumber,
+    subject: connection.subject!,
+    server: connection.server,
+    template: templateMode ? body : undefined,
+    data: templateMode ? undefined : body,
+    headers,
+  };
 }
 
 function parseActionFromBlock(
@@ -152,53 +230,21 @@ function parseActionFromBlock(
   }
 
   const timeoutMs = parseInteger(meta.get("nats-timeout"));
+  const { lineNumber } = lines[requestIndex];
 
   if (type === "jetstreamPublish") {
-    const stream = meta.get("nats-stream");
-    return {
-      type,
-      lineNumber: lines[requestIndex].lineNumber,
-      subject: connection.subject ?? "",
-      server: connection.server,
-      stream: stream,
-      data: body,
+    return createJetStreamPublishAction(
+      lineNumber,
+      connection,
+      meta,
+      body,
       headers,
       timeoutMs,
-    };
+    );
   }
 
   if (type === "jetstreamConsume") {
-    // Parse JSCONSUME stream/consumer or use headers
-    const stream = meta.get("nats-stream");
-    const durable = meta.get("nats-durable");
-
-    if (stream && durable) {
-      return {
-        type,
-        lineNumber: lines[requestIndex].lineNumber,
-        subject: "",
-        server: connection.server,
-        stream,
-        durable,
-        headers,
-      };
-    }
-
-    // Try to parse from subject path: stream/consumer
-    const pathParts = connection.subject?.split("/") ?? [];
-    if (pathParts.length === 2) {
-      return {
-        type,
-        lineNumber: lines[requestIndex].lineNumber,
-        subject: "",
-        server: connection.server,
-        stream: pathParts[0],
-        durable: pathParts[1],
-        headers,
-      };
-    }
-
-    return undefined;
+    return createJetStreamConsumeAction(lineNumber, connection, meta, headers);
   }
 
   if (!connection.subject) {
@@ -206,23 +252,12 @@ function parseActionFromBlock(
   }
 
   if (type === "reply") {
-    const replyMode = (meta.get("nats-reply-mode") ?? "").toLowerCase();
-    const templateMode =
-      replyMode === "template" || (!replyMode && !looksLikeJson(body));
-    return {
-      type,
-      lineNumber: lines[requestIndex].lineNumber,
-      subject: connection.subject,
-      server: connection.server,
-      template: templateMode ? body : undefined,
-      data: !templateMode ? body : undefined,
-      headers,
-    };
+    return createReplyAction(lineNumber, connection, meta, body, headers);
   }
 
   const action: NatsAction = {
     type,
-    lineNumber: lines[requestIndex].lineNumber,
+    lineNumber,
     subject: connection.subject,
     server: connection.server,
     data: body,
@@ -296,10 +331,7 @@ function collectBody(
   while (bodyLines.length > 0 && bodyLines[0].trim().length === 0) {
     bodyLines.shift();
   }
-  while (
-    bodyLines.length > 0 &&
-    bodyLines[bodyLines.length - 1].trim().length === 0
-  ) {
+  while (bodyLines.length > 0 && bodyLines.at(-1)!.trim().length === 0) {
     bodyLines.pop();
   }
   if (bodyLines.length === 0) {
@@ -345,11 +377,16 @@ function tryParseUrl(value: string): URL | undefined {
 }
 
 function buildServerUrl(url: URL): string {
-  const auth = url.username
-    ? `${url.username}${url.password ? `:${url.password}` : ""}@`
-    : "";
-  const port = url.port ? `:${url.port}` : "";
-  return `${url.protocol}//${auth}${url.hostname}${port}`;
+  const { username, password, port, protocol, hostname } = url;
+
+  let auth = "";
+  if (username) {
+    const userPass = password ? `${username}:${password}` : username;
+    auth = `${userPass}@`;
+  }
+
+  const portStr = port ? `:${port}` : "";
+  return `${protocol}//${auth}${hostname}${portStr}`;
 }
 
 function decodeSubject(pathname: string): string | undefined {
@@ -413,7 +450,7 @@ function looksLikeJson(value: string | undefined): boolean {
 }
 
 function sanitizeRandomIds(value: string): string {
-  return value.replace(RANDOM_ID_PATTERN, () => `"${randomUUID()}"`);
+  return value.replaceAll(RANDOM_ID_PATTERN, () => `"${randomUUID()}"`);
 }
 
 function parseInteger(value: string | undefined): number | undefined {
