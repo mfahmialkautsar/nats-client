@@ -41,12 +41,18 @@ describe("VariableHoverProvider", () => {
 
   it("returns undefined when no variable is found at position", () => {
     (document.getWordRangeAtPosition as Mock).mockReturnValue(undefined);
-    const result = provider.provideHover(document, {} as vscode.Position);
+    const result = provider.provideHover(document, {
+      line: 0,
+      character: 0,
+    } as vscode.Position);
     expect(result).toBeUndefined();
   });
 
   it("returns global variable hover", () => {
-    const range = {};
+    const range = {
+      start: { line: 0, character: 0 },
+      end: { line: 0, character: 10 },
+    };
     (document.getWordRangeAtPosition as Mock).mockReturnValue(range);
     (document.getText as Mock).mockImplementation((r: unknown) => {
       if (r === range) {
@@ -56,10 +62,10 @@ describe("VariableHoverProvider", () => {
     });
     (variableStore.get as Mock).mockReturnValue("localhost");
 
-    const result = provider.provideHover(
-      document,
-      {} as vscode.Position,
-    ) as vscode.Hover;
+    const result = provider.provideHover(document, {
+      line: 0,
+      character: 0,
+    } as vscode.Position) as vscode.Hover;
 
     expect(result).toBeInstanceOf(vscode.Hover);
     const contents = result.contents as unknown as { value: string };
@@ -68,7 +74,10 @@ describe("VariableHoverProvider", () => {
   });
 
   it("returns local variable hover", () => {
-    const range = {};
+    const range = {
+      start: { line: 0, character: 0 },
+      end: { line: 0, character: 10 },
+    };
     (document.getWordRangeAtPosition as Mock).mockReturnValue(range);
     const fullText = "@msg = hello\n{{msg}}";
     (document.getText as Mock).mockImplementation((r: unknown) => {
@@ -79,10 +88,10 @@ describe("VariableHoverProvider", () => {
     });
     (variableStore.get as Mock).mockReturnValue(undefined);
 
-    const result = provider.provideHover(
-      document,
-      {} as vscode.Position,
-    ) as vscode.Hover;
+    const result = provider.provideHover(document, {
+      line: 0,
+      character: 0,
+    } as vscode.Position) as vscode.Hover;
 
     expect(result).toBeInstanceOf(vscode.Hover);
     const contents = result.contents as unknown as { value: string };
@@ -91,7 +100,10 @@ describe("VariableHoverProvider", () => {
   });
 
   it("returns undefined if variable not found", () => {
-    const range = {};
+    const range = {
+      start: { line: 0, character: 0 },
+      end: { line: 0, character: 10 },
+    };
     (document.getWordRangeAtPosition as Mock).mockReturnValue(range);
     (document.getText as Mock).mockImplementation((r: unknown) => {
       if (r === range) {
@@ -101,10 +113,10 @@ describe("VariableHoverProvider", () => {
     });
     (variableStore.get as Mock).mockReturnValue(undefined);
 
-    const result = provider.provideHover(
-      document,
-      {} as vscode.Position,
-    ) as vscode.Hover;
+    const result = provider.provideHover(document, {
+      line: 0,
+      character: 0,
+    } as vscode.Position);
 
     expect(result).toBeUndefined();
   });
