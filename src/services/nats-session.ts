@@ -1,8 +1,7 @@
 import type { LogSink, LogBlock, LogItem } from "@/services/log-sink";
 import { appendLogBlock } from "@/services/log-sink";
 import type { JetStreamManager } from "nats";
-import { readMsgHeaders } from "@/services/header-utils";
-import { buildMsgHeaders } from "@/services/header-utils";
+import { readMsgHeaders, buildMsgHeaders } from "@/services/header-utils";
 import type {
   HeaderMap,
   MsgLike,
@@ -42,6 +41,30 @@ export interface RequestOptions {
 export interface SavedConnection {
   name: string;
   serverUrl: string;
+}
+
+interface ConsumeSubscriptionOptions {
+  connection: NatsConnectionLike;
+  subscription: SubscriptionLike;
+  subject: string;
+  sink: LogSink;
+  isReply: boolean;
+  template?: string;
+  payload?: string;
+  replyHeaders?: HeaderMap;
+  stream?: string;
+  consumer?: string;
+}
+
+interface HandleReplyOptions {
+  msg: MsgLike;
+  subject: string;
+  sink: LogSink;
+  timestamp: string;
+  prefix: string;
+  template?: string;
+  payload?: string;
+  replyHeaders?: HeaderMap;
 }
 
 export class NatsSession {
@@ -112,13 +135,13 @@ export class NatsSession {
     }
     const connection = await this.getConnection(serverUrl);
     const subscription = connection.connection.subscribe(subject);
-    const task = this.consumeSubscription(
-      connection.connection,
+    const task = this.consumeSubscription({
+      connection: connection.connection,
       subscription,
       subject,
       sink,
-      false,
-    );
+      isReply: false,
+    });
     this.subscriptions.set(key, {
       subject,
       server: connection.serverKey,
@@ -194,16 +217,16 @@ export class NatsSession {
     }
     const connection = await this.getConnection(serverUrl);
     const subscription = connection.connection.subscribe(subject);
-    const task = this.consumeSubscription(
-      connection.connection,
+    const task = this.consumeSubscription({
+      connection: connection.connection,
       subscription,
       subject,
       sink,
-      true,
+      isReply: true,
       template,
       payload,
       replyHeaders,
-    );
+    });
     this.replies.set(key, {
       subject,
       server: connection.serverKey,
@@ -235,7 +258,7 @@ export class NatsSession {
 
   async publishJetStream(
     serverUrl: string,
-    stream: string | undefined,
+    _stream: string | undefined,
     subject: string,
     payload: string,
     headers?: HeaderMap,
@@ -290,18 +313,15 @@ export class NatsSession {
 
     const displaySubject = subject || `${stream}/${consumerName}`;
 
-    const task = this.consumeSubscription(
-      nc,
-      subscription as unknown as SubscriptionLike,
-      displaySubject,
+    const task = this.consumeSubscription({
+      connection: nc,
+      subscription: subscription as unknown as SubscriptionLike,
+      subject: displaySubject,
       sink,
-      false,
-      undefined,
-      undefined,
-      undefined,
+      isReply: false,
       stream,
-      consumerName,
-    );
+      consumer: consumerName,
+    });
 
     this.subscriptions.set(key, {
       subject: displaySubject,
@@ -334,7 +354,7 @@ export class NatsSession {
     this.stopAll(this.subscriptions, this.subscriptionCounts);
     this.stopAll(this.replies, this.replyCounts);
     const closings = Array.from(this.connections.values()).map((entry) =>
-      entry.connection.close(),
+      Promise.resolve(entry.connection.close()),
     );
     this.connections.clear();
     await Promise.allSettled(closings);
@@ -356,14 +376,14 @@ export class NatsSession {
     url: string;
     status: "connected" | "disconnected";
   }> {
-    return Array.from(this.connections.values()).map((entry) => ({
-      server: entry.serverKey,
-      url: entry.rawUrl,
-      status:
-        entry.markedClosed || entry.connection.isClosed()
-          ? "disconnected"
-          : "connected",
-    }));
+    return Array.from(this.connections.values()).map(
+      ({ serverKey, rawUrl, markedClosed, connection }) => ({
+        server: serverKey,
+        url: rawUrl,
+        status:
+          markedClosed || connection.isClosed() ? "disconnected" : "connected",
+      }),
+    );
   }
 
   getConnectionStatus(
@@ -497,22 +517,26 @@ export class NatsSession {
    * Returns an array describing active subscriptions (non-reply).
    */
   listSubscriptions(): Array<{ server: string; subject: string; key: string }> {
-    return Array.from(this.subscriptions.entries()).map(([key, ctx]) => ({
-      server: ctx.server,
-      subject: ctx.subject,
-      key,
-    }));
+    return Array.from(this.subscriptions.entries()).map(
+      ([key, { server, subject }]) => ({
+        server,
+        subject,
+        key,
+      }),
+    );
   }
 
   /**
    * Returns an array describing active reply handlers.
    */
   listReplyHandlers(): Array<{ server: string; subject: string; key: string }> {
-    return Array.from(this.replies.entries()).map(([key, ctx]) => ({
-      server: ctx.server,
-      subject: ctx.subject,
-      key,
-    }));
+    return Array.from(this.replies.entries()).map(
+      ([key, { server, subject }]) => ({
+        server,
+        subject,
+        key,
+      }),
+    );
   }
 
   private async getConnection(url: string): Promise<ManagedConnection> {
@@ -557,70 +581,32 @@ export class NatsSession {
     store: Map<string, SubscriptionContext>,
     counts: Map<string, number>,
   ): void {
-    const keys = Array.from(store.keys());
-    for (let index = 0; index < keys.length; index += 1) {
-      this.stopContext(store, keys[index], counts);
+    for (const key of Array.from(store.keys())) {
+      this.stopContext(store, key, counts);
     }
   }
 
   private async consumeSubscription(
-    connection: NatsConnectionLike,
-    subscription: SubscriptionLike,
-    subject: string,
-    sink: LogSink,
-    isReply: boolean,
-    template?: string,
-    payload?: string,
-    replyHeaders?: HeaderMap,
-    stream?: string,
-    consumer?: string,
+    options: ConsumeSubscriptionOptions,
   ): Promise<void> {
+    const { connection, subscription, subject, sink } = options;
     const prefix = this.connectionInfo(connection);
     try {
       for await (const msg of subscription) {
         const timestamp = this.timestamp();
-        if (isReply) {
-          await this.handleReply(
+        if (options.isReply) {
+          await this.handleReply({
             msg,
             subject,
             sink,
             timestamp,
             prefix,
-            template,
-            payload,
-            replyHeaders,
-          );
+            template: options.template,
+            payload: options.payload,
+            replyHeaders: options.replyHeaders,
+          });
         } else {
-          const meta: Record<string, string> = {
-            timestamp,
-            connection: prefix,
-            subject: msg.subject,
-          };
-
-          if (stream) {
-            meta.stream = stream;
-          }
-          if (consumer) {
-            meta.consumer = consumer;
-          }
-
-          const items: LogItem[] = [
-            {
-              title: "Received",
-              body: msg.string(),
-              headers: readMsgHeaders(msg.headers),
-            },
-          ];
-          appendLogBlock(sink, { meta, items }, "");
-
-          // Ack message if available (JetStream)
-          if (msg.ack) {
-            try {
-              msg.ack();
-            } catch (ackError) {
-              console.warn("Failed to ack message", ackError);
-            }
-          }
+          this.handleStandardMessage(msg, prefix, options, timestamp);
         }
       }
     } catch (error) {
@@ -632,16 +618,56 @@ export class NatsSession {
     }
   }
 
-  private async handleReply(
+  private handleStandardMessage(
     msg: MsgLike,
-    subject: string,
-    sink: LogSink,
-    timestamp: string,
     prefix: string,
-    template?: string,
-    payload?: string,
-    replyHeaders?: HeaderMap,
-  ): Promise<void> {
+    options: ConsumeSubscriptionOptions,
+    timestamp: string,
+  ): void {
+    const { sink, stream, consumer } = options;
+    const meta: Record<string, string> = {
+      timestamp,
+      connection: prefix,
+      subject: msg.subject,
+    };
+
+    if (stream) {
+      meta.stream = stream;
+    }
+    if (consumer) {
+      meta.consumer = consumer;
+    }
+
+    const items: LogItem[] = [
+      {
+        title: "Received",
+        body: msg.string(),
+        headers: readMsgHeaders(msg.headers),
+      },
+    ];
+    appendLogBlock(sink, { meta, items }, "");
+
+    // Ack message if available (JetStream)
+    if (msg.ack) {
+      try {
+        msg.ack();
+      } catch (ackError) {
+        console.warn("Failed to ack message", ackError);
+      }
+    }
+  }
+
+  private async handleReply(options: HandleReplyOptions): Promise<void> {
+    const {
+      msg,
+      subject,
+      sink,
+      timestamp,
+      prefix,
+      template,
+      payload,
+      replyHeaders,
+    } = options;
     if (!msg.reply) {
       appendLogBlock(sink, {
         meta: { timestamp, connection: prefix, subject },
@@ -686,7 +712,7 @@ export class NatsSession {
   }
 
   private connectionInfo(connection: NatsConnectionLike): string {
-    const info = connection.info;
+    const { info } = connection;
     const id = info?.client_id ?? "client";
     const host = info?.host ?? "host";
     const port = info?.port ?? "port";
@@ -735,22 +761,22 @@ export class NatsSession {
   }
 
   private buildConnectOptions(url: string): NatsConnectOptions {
-    const parsed = new URL(url);
-    const host = `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}`;
+    const { protocol, hostname, port, username, password } = new URL(url);
+    const portStr = port ? `:${port}` : "";
+    const host = `${protocol}//${hostname}${portStr}`;
     return {
       servers: [host],
-      user: parsed.username || undefined,
-      pass: parsed.password || undefined,
+      user: username || undefined,
+      pass: password || undefined,
     };
   }
 
   private normalizeServerUrl(url: string): string {
-    const parsed = new URL(url);
-    const auth = parsed.username
-      ? `${parsed.username}${parsed.password ? `:${parsed.password}` : ""}@`
-      : "";
-    const port = parsed.port ? `:${parsed.port}` : "";
-    return `${parsed.protocol}//${auth}${parsed.hostname}${port}`;
+    const { password, username, port, protocol, hostname } = new URL(url);
+    const userPass = password ? `${username}:${password}` : username;
+    const auth = username ? `${userPass}@` : "";
+    const portStr = port ? `:${port}` : "";
+    return `${protocol}//${auth}${hostname}${portStr}`;
   }
 
   private subjectKey(server: string, subject: string): string {
@@ -760,13 +786,13 @@ export class NatsSession {
 
 export function interpolateTemplate(template: string, msg: MsgLike): string {
   let result = template;
-  result = result.replace(/\$msg\.data/g, safeStringResponse(msg));
-  result = result.replace(/\$msg\.subject/g, msg.subject);
-  result = result.replace(
+  result = result.replaceAll("$msg.data", safeStringResponse(msg));
+  result = result.replaceAll("$msg.subject", msg.subject);
+  result = result.replaceAll(
     /\$msg\.headers\.([a-zA-Z0-9_-]+)/g,
     (_, header: string) => msg.headers?.get(header) ?? "",
   );
-  result = result.replace(/\$json\.([a-zA-Z0-9_]+)/g, (_, key: string) => {
+  result = result.replaceAll(/\$json\.(\w+)/g, (_, key: string) => {
     try {
       const data = msg.json<Record<string, unknown>>();
       const value = data?.[key];
