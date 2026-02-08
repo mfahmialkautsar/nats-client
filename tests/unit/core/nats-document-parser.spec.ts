@@ -143,18 +143,18 @@ NATS-Stream: orders
     
 {"id": 1}`;
     const [action] = parseNatsDocument(text);
-    expect(action!.type).toBe("jetstreamPublish");
-    expect(action!.subject).toBe("orders.new");
-    expect(action!.stream).toBe("orders");
-    expect(action!.data).toContain('"id": 1');
+    expect(action.type).toBe("jetstreamPublish");
+    expect(action.subject).toBe("orders.new");
+    expect(action.stream).toBe("orders");
+    expect(action.data).toContain('"id": 1');
   });
 
   it("parses jetstream consume commands with stream/consumer path", () => {
     const text = `JSCONSUME nats://demo.nats.io/orders/consumer`;
     const [action] = parseNatsDocument(text);
-    expect(action!.type).toBe("jetstreamConsume");
-    expect(action!.stream).toBe("orders");
-    expect(action!.durable).toBe("consumer");
+    expect(action.type).toBe("jetstreamConsume");
+    expect(action.stream).toBe("orders");
+    expect(action.durable).toBe("consumer");
   });
 
   it("parses jetstream consume commands with metadata", () => {
@@ -162,9 +162,9 @@ NATS-Stream: orders
 NATS-Stream: orders
 NATS-Durable: consumer`;
     const [action] = parseNatsDocument(text);
-    expect(action!.type).toBe("jetstreamConsume");
-    expect(action!.stream).toBe("orders");
-    expect(action!.durable).toBe("consumer");
+    expect(action.type).toBe("jetstreamConsume");
+    expect(action.stream).toBe("orders");
+    expect(action.durable).toBe("consumer");
   });
 
   it("derives subject and server from metadata when the command omits them", () => {
@@ -174,8 +174,8 @@ NATS-Subject: lab.missing
 
 "payload"`;
     const [action] = parseNatsDocument(text);
-    expect(action!.subject).toBe("lab.missing");
-    expect(action!.server).toBe("nats://demo.nats.io");
+    expect(action.subject).toBe("lab.missing");
+    expect(action.server).toBe("nats://demo.nats.io");
   });
 
   it("honors reply mode metadata when deciding between templates and payloads", () => {
@@ -183,20 +183,20 @@ NATS-Subject: lab.missing
 
     Hello, $json.name!`;
     const [templateAction] = parseNatsDocument(templateText);
-    expect(templateAction!.template).toContain("Hello");
+    expect(templateAction.template).toContain("Hello");
     const payloadText = `REPLY nats://demo.nats.io/lab.payload
 NATS-Reply-Mode: payload
 
 {"value":42}`;
     const [payloadAction] = parseNatsDocument(payloadText);
-    expect(payloadAction!.data).toContain('"value":42');
-    expect(payloadAction!.template).toBeUndefined();
+    expect(payloadAction.data).toContain('"value":42');
+    expect(payloadAction.template).toBeUndefined();
     const forcedTemplateText = `REPLY nats://demo.nats.io/lab.forced
 NATS-Reply-Mode: template
 
 {"value":42}`;
     const [forcedAction] = parseNatsDocument(forcedTemplateText);
-    expect(forcedAction!.template).toContain('"value":42');
+    expect(forcedAction.template).toContain('"value":42');
   });
 
   it("skips commented header lines and stops parsing on invalid header keys", () => {
