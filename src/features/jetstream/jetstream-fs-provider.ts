@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
 import type { NatsSession } from "@/services/nats-session";
-import { TextEncoder, TextDecoder } from "util";
+import { TextEncoder, TextDecoder } from "node:util";
+import type { JetStreamManager, StreamConfig, ConsumerConfig } from "nats";
 
 export class JetStreamFileSystemProvider implements vscode.FileSystemProvider {
-  private _onDidChangeFile = new vscode.EventEmitter<
+  private readonly _onDidChangeFile = new vscode.EventEmitter<
     vscode.FileChangeEvent[]
   >();
   readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> =
@@ -11,18 +12,30 @@ export class JetStreamFileSystemProvider implements vscode.FileSystemProvider {
 
   constructor(private readonly session: NatsSession) {}
 
-  refresh(uri: vscode.Uri): void {
-    this._onDidChangeFile.fire([{ type: vscode.FileChangeType.Changed, uri }]);
+  private parseUri(uri: vscode.Uri) {
+    const query = new URLSearchParams(uri.query);
+    return {
+      serverUrl: query.get("server"),
+      type: query.get("type"),
+      stream: query.get("stream"),
+      consumer: query.get("consumer"),
+    };
+  }
+
+  refresh(_uri: vscode.Uri): void {
+    this._onDidChangeFile.fire([
+      { type: vscode.FileChangeType.Changed, uri: _uri },
+    ]);
   }
 
   watch(
-    uri: vscode.Uri,
-    options: { recursive: boolean; excludes: string[] },
+    _uri: vscode.Uri,
+    _options: { recursive: boolean; excludes: string[] },
   ): vscode.Disposable {
     return new vscode.Disposable(() => {});
   }
 
-  async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
+  async stat(_uri: vscode.Uri): Promise<vscode.FileStat> {
     return {
       type: vscode.FileType.File,
       ctime: Date.now(),
@@ -31,22 +44,18 @@ export class JetStreamFileSystemProvider implements vscode.FileSystemProvider {
     };
   }
 
-  async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
+  async readDirectory(_uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
     return [];
   }
 
-  async createDirectory(uri: vscode.Uri): Promise<void> {
+  async createDirectory(_uri: vscode.Uri): Promise<void> {
     throw vscode.FileSystemError.NoPermissions(
       "Read-only file system (directories)",
     );
   }
 
   async readFile(uri: vscode.Uri): Promise<Uint8Array> {
-    const query = new URLSearchParams(uri.query);
-    const serverUrl = query.get("server");
-    const type = query.get("type");
-    const stream = query.get("stream");
-    const consumer = query.get("consumer");
+    const { serverUrl, type, stream, consumer } = this.parseUri(uri);
 
     if (!serverUrl || !type) {
       throw vscode.FileSystemError.FileNotFound(uri);
@@ -68,20 +77,134 @@ export class JetStreamFileSystemProvider implements vscode.FileSystemProvider {
 
       return new TextEncoder().encode(content);
     } catch (err) {
+      console.error("Failed to read file for stat:", err);
       throw vscode.FileSystemError.FileNotFound(uri);
+    }
+  }
+
+  private async updateStream(
+    jsm: JetStreamManager,
+    stream: string,
+    data: unknown,
+  ): Promise<void> {
+    const config = ((data as { config?: StreamConfig }).config ||
+      data) as StreamConfig;
+    if (config.name && config.name !== stream) {
+      throw new Error("Renaming stream is not supported");
+    }
+    const result = await jsm.streams.update(stream, config);
+    const diff = getDiff(
+      config as unknown as Record<string, unknown>,
+      result.config as unknown as Record<string, unknown>,
+    );
+    if (diff.length > 0) {
+      vscode.window.showWarningMessage(
+        `Stream updated with discrepancies: ${diff.join(", ")}`,
+      );
+    } else {
+      vscode.window.showInformationMessage(
+        `Successfully updated stream configuration for '${stream}'`,
+      );
+    }
+  }
+
+  private getNewConsumerName(
+    consumer: string,
+    config: ConsumerConfig,
+    topLevelName?: string,
+  ): string {
+    if (config.durable_name && config.durable_name !== consumer) {
+      return config.durable_name;
+    }
+    if (config.name && config.name !== consumer) {
+      // Ensure durable_name matches if we are renaming via name
+      config.durable_name = config.name;
+      return config.name;
+    }
+    if (topLevelName && topLevelName !== consumer) {
+      // Handle top-level name change
+      config.durable_name = topLevelName;
+      if (config.name) {
+        config.name = topLevelName;
+      }
+      return topLevelName;
+    }
+    return consumer;
+  }
+
+  private async updateConsumer(
+    jsm: JetStreamManager,
+    stream: string,
+    consumer: string,
+    data: unknown,
+    uri: vscode.Uri,
+    serverUrl: string,
+  ): Promise<void> {
+    const config = ((data as { config?: ConsumerConfig }).config ||
+      data) as ConsumerConfig;
+    const topLevelName = (data as { name?: string }).name;
+
+    const newName = this.getNewConsumerName(consumer, config, topLevelName);
+
+    if (newName === consumer) {
+      const result = await jsm.consumers.update(stream, consumer, config);
+      const diff = getDiff(
+        config as unknown as Record<string, unknown>,
+        result.config as unknown as Record<string, unknown>,
+      );
+      if (diff.length > 0) {
+        vscode.window.showWarningMessage(
+          `Consumer updated with discrepancies: ${diff.join(", ")}`,
+        );
+      } else {
+        vscode.window.showInformationMessage(
+          `Successfully updated consumer configuration for '${consumer}'`,
+        );
+      }
+      this._onDidChangeFile.fire([
+        { type: vscode.FileChangeType.Changed, uri },
+      ]);
+    } else {
+      // Handle rename: create new, delete old
+      const result = await jsm.consumers.add(stream, config);
+      await jsm.consumers.delete(stream, consumer);
+
+      const diff = getDiff(
+        config as unknown as Record<string, unknown>,
+        result.config as unknown as Record<string, unknown>,
+      );
+      if (diff.length > 0) {
+        vscode.window.showWarningMessage(
+          `Successfully renamed consumer to '${newName}' but with discrepancies: ${diff.join(", ")}`,
+        );
+      } else {
+        vscode.window.showInformationMessage(
+          `Successfully renamed consumer from '${consumer}' to '${newName}'`,
+        );
+      }
+
+      // Notify explorer to refresh
+      vscode.commands.executeCommand("nats.jetStreamExplorer.refresh");
+
+      // Fire deleted event for old URI to close/update editor state
+      this._onDidChangeFile.fire([
+        { type: vscode.FileChangeType.Deleted, uri },
+      ]);
+
+      const newUri = vscode.Uri.parse(
+        `nats-jetstream:/${stream}/${newName}.json?type=consumer&server=${encodeURIComponent(serverUrl)}&stream=${stream}&consumer=${newName}`,
+      );
+      const doc = await vscode.workspace.openTextDocument(newUri);
+      await vscode.window.showTextDocument(doc, { preview: false });
     }
   }
 
   async writeFile(
     uri: vscode.Uri,
     content: Uint8Array,
-    options: { create: boolean; overwrite: boolean },
+    _options: { create: boolean; overwrite: boolean },
   ): Promise<void> {
-    const query = new URLSearchParams(uri.query);
-    const serverUrl = query.get("server");
-    const type = query.get("type");
-    const stream = query.get("stream");
-    const consumer = query.get("consumer");
+    const { serverUrl, type, stream, consumer } = this.parseUri(uri);
 
     if (!serverUrl || !type) {
       throw vscode.FileSystemError.NoPermissions("Invalid URI");
@@ -93,96 +216,9 @@ export class JetStreamFileSystemProvider implements vscode.FileSystemProvider {
       const data = JSON.parse(text);
 
       if (type === "stream" && stream) {
-        const config = data.config || data;
-        if (config.name && config.name !== stream) {
-          throw new Error("Renaming stream is not supported");
-        }
-        const result = await jsm.streams.update(stream, config);
-        const diff = getDiff(
-          config as unknown as Record<string, unknown>,
-          result.config as unknown as Record<string, unknown>,
-        );
-        if (diff.length > 0) {
-          vscode.window.showWarningMessage(
-            `Stream updated with discrepancies: ${diff.join(", ")}`,
-          );
-        } else {
-          vscode.window.showInformationMessage(
-            `Successfully updated stream configuration for '${stream}'`,
-          );
-        }
+        await this.updateStream(jsm, stream, data);
       } else if (type === "consumer" && stream && consumer) {
-        const config = data.config || data;
-        // Determine new name: prefer durable_name if changed, else name if changed, else keep old
-        let newName = consumer;
-        const topLevelName = data.name;
-
-        if (config.durable_name && config.durable_name !== consumer) {
-          newName = config.durable_name;
-        } else if (config.name && config.name !== consumer) {
-          newName = config.name;
-          // Ensure durable_name matches if we are renaming via name
-          config.durable_name = newName;
-        } else if (topLevelName && topLevelName !== consumer) {
-          // Handle top-level name change
-          newName = topLevelName;
-          config.durable_name = newName;
-          if (config.name) {
-            config.name = newName;
-          }
-        }
-
-        if (newName !== consumer) {
-          // Handle rename: create new, delete old
-          const result = await jsm.consumers.add(stream, config);
-          await jsm.consumers.delete(stream, consumer);
-
-          const diff = getDiff(
-            config as unknown as Record<string, unknown>,
-            result.config as unknown as Record<string, unknown>,
-          );
-          if (diff.length > 0) {
-            vscode.window.showWarningMessage(
-              `Successfully renamed consumer to '${newName}' but with discrepancies: ${diff.join(", ")}`,
-            );
-          } else {
-            vscode.window.showInformationMessage(
-              `Successfully renamed consumer from '${consumer}' to '${newName}'`,
-            );
-          }
-
-          // Notify explorer to refresh
-          vscode.commands.executeCommand("nats.jetStreamExplorer.refresh");
-
-          // Fire deleted event for old URI to close/update editor state
-          this._onDidChangeFile.fire([
-            { type: vscode.FileChangeType.Deleted, uri },
-          ]);
-
-          const newUri = vscode.Uri.parse(
-            `nats-jetstream:/${stream}/${newName}.json?type=consumer&server=${encodeURIComponent(serverUrl)}&stream=${stream}&consumer=${newName}`,
-          );
-          const doc = await vscode.workspace.openTextDocument(newUri);
-          await vscode.window.showTextDocument(doc, { preview: false });
-        } else {
-          const result = await jsm.consumers.update(stream, consumer, config);
-          const diff = getDiff(
-            config as unknown as Record<string, unknown>,
-            result.config as unknown as Record<string, unknown>,
-          );
-          if (diff.length > 0) {
-            vscode.window.showWarningMessage(
-              `Consumer updated with discrepancies: ${diff.join(", ")}`,
-            );
-          } else {
-            vscode.window.showInformationMessage(
-              `Successfully updated consumer configuration for '${consumer}'`,
-            );
-          }
-          this._onDidChangeFile.fire([
-            { type: vscode.FileChangeType.Changed, uri },
-          ]);
-        }
+        await this.updateConsumer(jsm, stream, consumer, data, uri, serverUrl);
       } else {
         throw vscode.FileSystemError.NoPermissions("Unknown type");
       }
@@ -192,16 +228,16 @@ export class JetStreamFileSystemProvider implements vscode.FileSystemProvider {
   }
 
   async delete(
-    uri: vscode.Uri,
-    options: { recursive: boolean },
+    _uri: vscode.Uri,
+    _options: { recursive: boolean },
   ): Promise<void> {
     throw vscode.FileSystemError.NoPermissions("Delete not supported via FS");
   }
 
   async rename(
-    oldUri: vscode.Uri,
-    newUri: vscode.Uri,
-    options: { overwrite: boolean },
+    _oldUri: vscode.Uri,
+    _newUri: vscode.Uri,
+    _options: { overwrite: boolean },
   ): Promise<void> {
     throw vscode.FileSystemError.NoPermissions("Rename not supported");
   }
