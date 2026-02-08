@@ -76,6 +76,49 @@ REPLY nats://localhost:4222/lab.echo
 - `NATS-*` headers configure action/session behavior (for example `NATS-Timeout`, server overrides, JetStream stream/durable).
 - Other headers are forwarded as message headers.
 
+### Authentication
+
+The extension supports several NATS authentication methods.
+
+#### 1. URL Authentication
+
+You can provide credentials directly in the NATS URL:
+
+- **Username/Password**: `nats://user:pass@localhost:4222` ([Docs](hhttps://docs.nats.io/using-nats/developer/connecting/userpass#connecting-with-a-user-password-in-the-url))
+- **Token**: `nats://mytoken@localhost:4222` ([Docs](https://docs.nats.io/using-nats/developer/connecting/token#connecting-with-a-token-in-the-url))
+
+#### 2. Header Authentication (Meta Headers)
+
+Alternatively, use `NATS-*` headers to configure authentication. This is useful for keeping URLs clean or providing file paths for certificates/creds.
+
+- **Username/Password**:
+  ```nats
+  NATS-User: myuser
+  NATS-Pass: mypass
+  ```
+- **Token**:
+  ```nats
+  NATS-Token: mytoken
+  ```
+- **Credentials File**:
+  ```nats
+  NATS-Creds: /path/to/user.creds
+  ```
+- **NKey**:
+  ```nats
+  NATS-Nkey: /path/to/seed.nk
+  ```
+- **JWT**:
+  ```nats
+  NATS-Jwt: /path/to/user.jwt
+  ```
+- **TLS**:
+  ```nats
+  NATS-Tls-Ca: /path/to/ca.pem
+  NATS-Tls-Cert: /path/to/client-cert.pem
+  NATS-Tls-Key: /path/to/client-key.pem
+  ```
+
 ### Body
 
 If present, the body is everything after the first blank line.

@@ -2,7 +2,7 @@
   "name": "nats-client",
   "displayName": "NATS Client",
   "description": "Just like REST Client, but for NATS",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "mfahmialkautsar",
   "license": "MIT",
   "keywords": [
