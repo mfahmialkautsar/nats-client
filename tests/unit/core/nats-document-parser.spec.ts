@@ -129,6 +129,35 @@ describe("parseNatsDocument", () => {
     expect(action.headers!["Trace-Id"]).toMatch(/"[0-9a-f-]{36}"/i);
   });
 
+  it("parses connection auth headers into server url params", () => {
+    const text = `
+PUBLISH test.auth
+Nats-Server: nats://localhost:4222
+Nats-User: myuser
+Nats-Pass: mypass
+Nats-Token: mytoken
+Nats-Creds: /creds.file
+Nats-Nkey: /seed.nk
+Nats-Jwt: /jwt.file
+Nats-Tls-Ca: /ca.pem
+Nats-Tls-Cert: /cert.pem
+Nats-Tls-Key: /key.pem
+`;
+    const [action] = parseNatsDocument(text);
+    expect(action).toBeDefined();
+    const url = new URL(action.server!);
+    const p = url.searchParams;
+    expect(p.get("user")).toBe("myuser");
+    expect(p.get("pass")).toBe("mypass");
+    expect(p.get("token")).toBe("mytoken");
+    expect(p.get("creds")).toBe("/creds.file");
+    expect(p.get("nkey")).toBe("/seed.nk");
+    expect(p.get("jwt")).toBe("/jwt.file");
+    expect(p.get("tls_ca")).toBe("/ca.pem");
+    expect(p.get("tls_cert")).toBe("/cert.pem");
+    expect(p.get("tls_key")).toBe("/key.pem");
+  });
+
   it("treats inline JSON bodies as payloads even without blank lines", () => {
     const text = 'PUBLISH nats://demo.nats.io/lab.inline\n{"value":1}';
     const [action] = parseNatsDocument(text);
