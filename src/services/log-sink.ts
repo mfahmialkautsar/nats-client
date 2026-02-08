@@ -12,6 +12,30 @@ export interface LogBlock {
   items: LogItem[];
 }
 
+function appendLogItem(
+  sink: LogSink,
+  item: LogItem,
+  baseIndent: string,
+  childIndent: string,
+  leafIndent: string,
+): void {
+  sink.appendLine(`${baseIndent}${item.title}:`);
+
+  if (item.headers && Object.keys(item.headers).length > 0) {
+    sink.appendLine(`${childIndent}Headers:`);
+    for (const [hk, hv] of Object.entries(item.headers)) {
+      sink.appendLine(`${leafIndent}${hk}: ${hv}`);
+    }
+  }
+
+  const body = item.body ?? "";
+  sink.appendLine(childIndent + "Body:");
+  const lines = body.split(/\r?\n/);
+  for (const line of lines) {
+    sink.appendLine(leafIndent + line);
+  }
+}
+
 export function appendLogBlock(
   sink: LogSink,
   block: LogBlock,
@@ -22,8 +46,8 @@ export function appendLogBlock(
   const leafIndent = childIndent + "  ";
 
   const timestamp =
-    block.meta && Object.prototype.hasOwnProperty.call(block.meta, "timestamp")
-      ? String((block.meta as Record<string, string>)["timestamp"])
+    block.meta && Object.hasOwn(block.meta, "timestamp")
+      ? String(block.meta["timestamp"])
       : undefined;
   if (timestamp) {
     sink.appendLine(`${baseIndent}${timestamp}`);
@@ -40,22 +64,7 @@ export function appendLogBlock(
   }
 
   for (const item of block.items) {
-    sink.appendLine(`${baseIndent}${item.title}:`);
-
-    if (item.headers && Object.keys(item.headers).length > 0) {
-      sink.appendLine(`${childIndent}Headers:`);
-      for (const [hk, hv] of Object.entries(item.headers)) {
-        sink.appendLine(`${leafIndent}${hk}: ${hv}`);
-      }
-    }
-
-    const body =
-      item.body !== undefined && item.body !== null ? String(item.body) : "";
-    sink.appendLine(childIndent + "Body:");
-    const lines = body.split(/\r?\n/);
-    for (const line of lines) {
-      sink.appendLine(leafIndent + line);
-    }
+    appendLogItem(sink, item, baseIndent, childIndent, leafIndent);
   }
 
   sink.appendLine("");

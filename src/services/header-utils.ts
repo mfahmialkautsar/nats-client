@@ -19,9 +19,7 @@ export function readMsgHeaders(
     return undefined;
   }
   const out: Record<string, string> = {};
-  for (const entry of Array.from(
-    headers as Iterable<[string, string | string[]]>,
-  )) {
+  for (const entry of Array.from(headers)) {
     const [k, v] = entry;
     out[k] = Array.isArray(v) ? v.join(",") : v;
   }
