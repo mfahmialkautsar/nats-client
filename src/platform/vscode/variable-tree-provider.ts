@@ -77,14 +77,15 @@ export function registerVariableTree(
         if (!node) {
           return;
         }
+        const { key, value: currentValue, environment } = node;
         const value = await vscode.window.showInputBox({
-          prompt: `Value for ${node.key}`,
-          value: node.value,
+          prompt: `Value for ${key}`,
+          value: currentValue,
         });
         if (value === undefined) {
           return;
         }
-        await store.set(node.key, value, node.environment);
+        await store.set(key, value, environment);
       },
     ),
     vscode.commands.registerCommand(
@@ -93,15 +94,16 @@ export function registerVariableTree(
         if (!node) {
           return;
         }
+        const { key, environment } = node;
         const confirmation = await vscode.window.showWarningMessage(
-          `Delete variable "${node.key}"?`,
+          `Delete variable "${key}"?`,
           { modal: true },
           "Delete",
         );
         if (confirmation !== "Delete") {
           return;
         }
-        await store.delete(node.key, node.environment);
+        await store.delete(key, environment);
       },
     ),
     vscode.commands.registerCommand(
