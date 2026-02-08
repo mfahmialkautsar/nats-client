@@ -24,7 +24,7 @@ describe("NatsSession", () => {
       "lab.metrics",
       "payload",
     );
-    expect(connection.lastOptions!.servers![0]).toBe("nats://localhost:4222");
+    expect(connection.lastOptions!.servers[0]).toBe("nats://localhost:4222");
     await session.reset();
   });
 
@@ -208,7 +208,7 @@ describe("NatsSession", () => {
     );
     await flushAsync();
     expect(respond).toHaveBeenCalled();
-    const [, options] = respond.mock.calls[0] as Parameters<MsgLike["respond"]>;
+    const [, options] = respond.mock.calls[0];
     expect(options?.headers?.get("Responder-Id")).toBe("unit-test");
     await session.reset();
   });

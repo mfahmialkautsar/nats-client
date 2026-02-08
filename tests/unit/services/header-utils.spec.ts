@@ -3,7 +3,7 @@ import { readMsgHeaders, buildMsgHeaders } from "@/services/header-utils";
 
 describe("header-utils", () => {
   it("returns undefined for undefined input", () => {
-    expect(readMsgHeaders(undefined)).toBeUndefined();
+    expect(readMsgHeaders()).toBeUndefined();
   });
 
   it("converts iterable headers to record", () => {
