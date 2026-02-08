@@ -24,9 +24,7 @@ export class OutputChannelRegistry {
   ) {}
 
   main(): OutputChannelLike {
-    if (!this.mainChannel) {
-      this.mainChannel = this.factory(this.mainLabel);
-    }
+    this.mainChannel ??= this.factory(this.mainLabel);
     return this.mainChannel;
   }
 
@@ -52,7 +50,9 @@ export class OutputChannelRegistry {
   getOrCreate(subject: string): { channel: OutputChannelLike; isNew: boolean } {
     let entry = this.subjects.get(subject);
     let isNew = false;
-    if (!entry) {
+    if (entry) {
+      entry.pinned = true;
+    } else {
       entry = {
         channel: this.factory(`${this.mainLabel} - ${subject}`),
         refCount: 0,
@@ -60,8 +60,6 @@ export class OutputChannelRegistry {
       };
       this.subjects.set(subject, entry);
       isNew = true;
-    } else {
-      entry.pinned = true;
     }
     return { channel: entry.channel, isNew };
   }
