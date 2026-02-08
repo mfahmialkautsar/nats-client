@@ -9,11 +9,14 @@ export async function showReplyHandlers(ctx: CommandContext) {
       void vscode.window.showInformationMessage("No active reply handlers");
       return;
     }
-    const items: vscode.QuickPickItem[] = handlers.map((h) => ({
-      label: h.subject,
-      description: h.server,
-      detail: h.key,
-    }));
+    const items: vscode.QuickPickItem[] = handlers.map((h) => {
+      const { subject, server, key } = h;
+      return {
+        label: subject,
+        description: server,
+        detail: key,
+      };
+    });
     const selection = await vscode.window.showQuickPick(items, {
       placeHolder: "Select a reply handler to manage",
     });
