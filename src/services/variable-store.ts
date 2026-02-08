@@ -1,5 +1,7 @@
-import type { Memento, Event } from "vscode";
-import type * as vscodeType from "vscode";
+import * as vscode from "vscode";
+
+type Memento = vscode.Memento;
+type Event<T> = vscode.Event<T>;
 
 interface EventEmitterLike<T> {
   event: Event<T>;
@@ -13,10 +15,10 @@ interface VariableSnapshot {
 
 const STORAGE_KEY = "natsClient.variables";
 const DEFAULT_ENVIRONMENT = "default";
-const TOKEN_PATTERN = /\{\{([^}]+)\}\}/g;
+const TOKEN_PATTERN = /\{\{([\w:.-]+)\}\}/g;
 
 export class VariableStore {
-  private state: VariableSnapshot;
+  private readonly state: VariableSnapshot;
   private readonly emitter: EventEmitterLike<void>;
   readonly onDidChange: Event<void>;
 
@@ -31,7 +33,6 @@ export class VariableStore {
     if (emitterFactory) {
       this.emitter = emitterFactory();
     } else {
-      const vscode = require("vscode") as typeof vscodeType;
       this.emitter = new vscode.EventEmitter<void>();
     }
     this.onDidChange = this.emitter.event;
@@ -42,7 +43,9 @@ export class VariableStore {
   }
 
   listEnvironments(): string[] {
-    return Object.keys(this.state.environments).sort();
+    return Object.keys(this.state.environments).sort((a, b) =>
+      a.localeCompare(b),
+    );
   }
 
   listVariables(
@@ -57,7 +60,9 @@ export class VariableStore {
   getAllVariables(
     environment = this.activeEnvironment,
   ): Record<string, string> {
-    return { ...(this.state.environments[environment] ?? {}) };
+    return {
+      ...this.state.environments[environment],
+    };
   }
 
   get(name: string, environment = this.activeEnvironment): string | undefined {
@@ -122,7 +127,7 @@ export class VariableStore {
   }
 
   resolveText(value: string): string {
-    return value.replace(TOKEN_PATTERN, (match, rawToken) => {
+    return value.replaceAll(TOKEN_PATTERN, (match, rawToken) => {
       const token = rawToken.trim();
       if (token.startsWith("env:")) {
         const envName = token.slice(4);
