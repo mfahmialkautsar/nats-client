@@ -12,6 +12,15 @@ const META_HEADERS = new Set([
   "nats-batch",
   "nats-reply-mode",
   "nats-subject",
+  "nats-user",
+  "nats-pass",
+  "nats-token",
+  "nats-creds",
+  "nats-nkey",
+  "nats-jwt",
+  "nats-tls-ca",
+  "nats-tls-cert",
+  "nats-tls-key",
 ]);
 const SUPPORTED_PROTOCOLS = new Set(["nats:", "tls:", "ws:", "wss:"]);
 const HEADER_KEY_PATTERN = /^[A-Za-z0-9-]+$/;
@@ -349,7 +358,7 @@ function resolveConnection(
     trimmedTarget.length > 0 ? trimmedTarget : (meta.get("nats-subject") ?? "");
   const url = tryParseUrl(candidateSubject);
   if (url) {
-    const server = buildServerUrl(url);
+    const server = buildServerUrl(url, meta);
     const subject = decodeSubject(url.pathname) ?? meta.get("nats-subject");
     // Subject is optional for some commands
     return { subject, server };
@@ -360,8 +369,12 @@ function resolveConnection(
     return undefined;
   }
   const subject = candidateSubject || meta.get("nats-subject");
+  const serverHeaderUrl = tryParseUrl(serverHeader);
+  const server = serverHeaderUrl
+    ? buildServerUrl(serverHeaderUrl, meta)
+    : serverHeader;
   // Subject is optional for some commands
-  return { subject, server: serverHeader };
+  return { subject, server };
 }
 
 function tryParseUrl(value: string): URL | undefined {
@@ -376,7 +389,7 @@ function tryParseUrl(value: string): URL | undefined {
   }
 }
 
-function buildServerUrl(url: URL): string {
+function buildServerUrl(url: URL, meta?: Map<string, string>): string {
   const { username, password, port, protocol, hostname } = url;
 
   let auth = "";
@@ -385,8 +398,35 @@ function buildServerUrl(url: URL): string {
     auth = `${userPass}@`;
   }
 
+  if (meta) {
+    applyMetaToUrl(url, meta);
+  }
+
   const portStr = port ? `:${port}` : "";
-  return `${protocol}//${auth}${hostname}${portStr}`;
+  const search = url.searchParams.toString();
+  const searchStr = search ? `?${search}` : "";
+  return `${protocol}//${auth}${hostname}${portStr}${searchStr}`;
+}
+
+function applyMetaToUrl(url: URL, meta: Map<string, string>): void {
+  const mappings: Record<string, string> = {
+    "nats-user": "user",
+    "nats-pass": "pass",
+    "nats-token": "token",
+    "nats-creds": "creds",
+    "nats-nkey": "nkey",
+    "nats-jwt": "jwt",
+    "nats-tls-ca": "tls_ca",
+    "nats-tls-cert": "tls_cert",
+    "nats-tls-key": "tls_key",
+  };
+
+  for (const [header, param] of Object.entries(mappings)) {
+    const value = meta.get(header);
+    if (value) {
+      url.searchParams.set(param, value);
+    }
+  }
 }
 
 function decodeSubject(pathname: string): string | undefined {
