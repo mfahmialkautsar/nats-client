@@ -1,15 +1,15 @@
 import * as vscode from "vscode";
 import type { NatsSession } from "@/services/nats-session";
-import type { StreamInfo, ConsumerInfo } from "nats";
+import { AckPolicy, type StreamInfo, type ConsumerInfo } from "nats";
 import type { JetStreamFileSystemProvider } from "./jetstream-fs-provider";
 
+type JetStreamEvent = JetStreamNode | undefined | null | void;
+
 export class JetStreamExplorerProvider implements vscode.TreeDataProvider<JetStreamNode> {
-  private _onDidChangeTreeData: vscode.EventEmitter<
-    JetStreamNode | undefined | null | void
-  > = new vscode.EventEmitter<JetStreamNode | undefined | null | void>();
-  readonly onDidChangeTreeData: vscode.Event<
-    JetStreamNode | undefined | null | void
-  > = this._onDidChangeTreeData.event;
+  private readonly _onDidChangeTreeData: vscode.EventEmitter<JetStreamEvent> =
+    new vscode.EventEmitter<JetStreamEvent>();
+  readonly onDidChangeTreeData: vscode.Event<JetStreamEvent> =
+    this._onDidChangeTreeData.event;
 
   constructor(
     private readonly session: NatsSession,
@@ -32,12 +32,12 @@ export class JetStreamExplorerProvider implements vscode.TreeDataProvider<JetStr
       const connections = this.session.listConnections();
       // Filter only connected servers for JetStream exploration
       return connections
-        .filter((conn) => conn.status === "connected")
+        .filter(({ status }) => status === "connected")
         .map(
-          (conn) =>
+          ({ server, url }) =>
             new ServerNode(
-              conn.server,
-              conn.url,
+              server,
+              url,
               vscode.TreeItemCollapsibleState.Collapsed,
             ),
         );
@@ -48,9 +48,9 @@ export class JetStreamExplorerProvider implements vscode.TreeDataProvider<JetStr
         const jsm = await this.session.getJetStreamManager(element.url);
         const streams = await jsm.streams.list().next();
         return streams.map(
-          (stream: StreamInfo) =>
+          ({ config }: StreamInfo) =>
             new StreamNode(
-              stream.config.name,
+              config.name,
               element.url,
               vscode.TreeItemCollapsibleState.Collapsed,
             ),
@@ -68,9 +68,9 @@ export class JetStreamExplorerProvider implements vscode.TreeDataProvider<JetStr
         const jsm = await this.session.getJetStreamManager(element.serverUrl);
         const consumers = await jsm.consumers.list(element.streamName).next();
         return consumers.map(
-          (consumer: ConsumerInfo) =>
+          ({ name }: ConsumerInfo) =>
             new ConsumerNode(
-              consumer.name,
+              name,
               element.streamName,
               element.serverUrl,
               vscode.TreeItemCollapsibleState.None,
@@ -136,7 +136,6 @@ export class JetStreamExplorerProvider implements vscode.TreeDataProvider<JetStr
 
     try {
       const jsm = await this.session.getJetStreamManager(node.serverUrl);
-      const { AckPolicy } = require("nats");
       await jsm.consumers.add(node.streamName, {
         durable_name: name,
         ack_policy: AckPolicy.Explicit,
