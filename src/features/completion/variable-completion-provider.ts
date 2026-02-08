@@ -9,16 +9,15 @@ export class VariableCompletionProvider
   provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-    token: vscode.CancellationToken,
-    context: vscode.CompletionContext,
+    _token: vscode.CancellationToken,
+    _context: vscode.CompletionContext,
   ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
-    const line = document.lineAt(position);
-    const lineText = line.text;
+    const { text: lineText } = document.lineAt(position);
     const prefix = lineText.substring(0, position.character);
 
     // Check if we are inside a variable placeholder {{...}}
     // Simple regex check: look for {{ followed by non-} characters
-    const match = prefix.match(/\{\{([^}]*)$/);
+    const match = /\{\{([\w.-]*)$/.exec(prefix);
     if (!match) {
       return undefined;
     }
@@ -39,7 +38,7 @@ export class VariableCompletionProvider
     }
 
     const text = document.getText();
-    const localVarRegex = /^@([a-zA-Z0-9_-]+)\s*=\s*(.*)$/gm;
+    const localVarRegex = /^@([\w-]+)[ \t]*=(.*)$/gm;
     let m;
     while ((m = localVarRegex.exec(text)) !== null) {
       const key = m[1];
