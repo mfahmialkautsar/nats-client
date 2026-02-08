@@ -33,19 +33,31 @@ export default [
         },
       ],
       "@typescript-eslint/naming-convention": [
-        "warn",
+        "error",
         {
           selector: "import",
           format: ["camelCase", "PascalCase"],
         },
       ],
 
-      curly: "warn",
-      eqeqeq: "warn",
-      "no-throw-literal": "warn",
-      semi: "warn",
+      curly: "error",
+      eqeqeq: "error",
+      "no-throw-literal": "error",
+      semi: "error",
       "@typescript-eslint/no-deprecated": "error",
-      "@typescript-eslint/no-unused-vars": "warn",
+      "no-negated-condition": "warn",
+      "sonarjs/no-empty-collection": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+      "prefer-object-has-own": "warn",
+      "@typescript-eslint/no-empty-function": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/consistent-type-imports": [
         "error",
@@ -53,6 +65,7 @@ export default [
           prefer: "type-imports",
         },
       ],
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
       "no-restricted-imports": [
         "error",
         {
@@ -62,10 +75,24 @@ export default [
               message:
                 "Usage of relative imports is not allowed. Use aliases instead.",
             },
+            {
+              group: builtinModules.flatMap((m) =>
+                m.startsWith("node:") ? [] : [m, `${m}/*`],
+              ),
+              message: "Use node: protocol imports (e.g. node:fs) instead.",
+            },
           ],
         },
       ],
-      "no-unused-vars": "warn",
+      "no-unused-vars": "off",
+      "prefer-destructuring": [
+        "error",
+        {
+          object: true,
+          array: false,
+        },
+      ],
+      "@typescript-eslint/prefer-readonly": "error",
     },
   },
 ];

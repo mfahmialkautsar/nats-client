@@ -411,7 +411,7 @@
     "watch": "bun build src/extension.ts --outdir=out --target=node --sourcemap=inline --external vscode --format=cjs --watch",
     "pretest": "bun run typecheck && bun run format:check && bun run lint",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests",
+    "lint": "eslint src tests --max-warnings 0",
     "lint:fix": "eslint src tests --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
