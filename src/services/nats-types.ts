@@ -1,4 +1,10 @@
-import type { JetStreamClient, MsgHdrs, JetStreamManager } from "nats";
+import type {
+  JetStreamClient,
+  MsgHdrs,
+  JetStreamManager,
+  Authenticator,
+  TlsOptions,
+} from "nats";
 
 export interface NatsConnectionInfo {
   client_id?: string | number;
@@ -53,6 +59,8 @@ export interface NatsConnectOptions {
   user?: string;
   pass?: string;
   token?: string;
+  authenticator?: Authenticator;
+  tls?: TlsOptions;
 }
 
 export type NatsConnector = (

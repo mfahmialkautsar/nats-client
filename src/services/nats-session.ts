@@ -1,6 +1,14 @@
 import type { LogSink, LogBlock, LogItem } from "@/services/log-sink";
 import { appendLogBlock } from "@/services/log-sink";
-import type { JetStreamManager } from "nats";
+import {
+  credsAuthenticator,
+  nkeyAuthenticator,
+  jwtAuthenticator,
+  type JetStreamManager,
+  type TlsOptions,
+  type Authenticator,
+} from "nats";
+import { readFileSync } from "node:fs";
 import { readMsgHeaders, buildMsgHeaders } from "@/services/header-utils";
 import type {
   HeaderMap,
@@ -761,27 +769,125 @@ export class NatsSession {
   }
 
   private buildConnectOptions(url: string): NatsConnectOptions {
-    const { protocol, hostname, port, username, password } = new URL(url);
+    const { protocol, hostname, port, username, password, searchParams } =
+      new URL(url);
     const portStr = port ? `:${port}` : "";
     const host = `${protocol}//${hostname}${portStr}`;
+
     const options: NatsConnectOptions = {
       servers: [host],
     };
-    if (username && !password) {
-      options.token = username;
-    } else {
-      options.user = username;
-      options.pass = password;
-    }
+
+    this.applyBasicAuth(options, searchParams, username, password);
+    options.authenticator = this.createAuthenticator(searchParams);
+    options.tls = this.createTlsOptions(searchParams);
+
     return options;
   }
 
+  private applyBasicAuth(
+    options: NatsConnectOptions,
+    params: URLSearchParams,
+    urlUser: string,
+    urlPass: string,
+  ): void {
+    const paramUser = params.get("user");
+    const paramPass = params.get("pass");
+    const paramToken = params.get("token");
+
+    const effectiveUser = urlUser || paramUser;
+    const effectivePass = urlPass || paramPass;
+
+    if (effectiveUser && !effectivePass) {
+      options.token = effectiveUser;
+    } else if (effectiveUser && effectivePass) {
+      options.user = effectiveUser;
+      options.pass = effectivePass;
+    } else if (paramToken) {
+      options.token = paramToken;
+    }
+  }
+
+  private createAuthenticator(
+    params: URLSearchParams,
+  ): Authenticator | undefined {
+    const creds = params.get("creds");
+    const nkey = params.get("nkey");
+    const jwt = params.get("jwt");
+
+    if (creds) {
+      try {
+        const data = readFileSync(creds);
+        return credsAuthenticator(data);
+      } catch (e) {
+        console.error(`Failed to read creds file: ${creds}`, e);
+      }
+    } else if (nkey) {
+      let seed = nkey;
+      if (!nkey.startsWith("S")) {
+        try {
+          seed = readFileSync(nkey, "utf-8").trim();
+        } catch {
+          // ignore
+        }
+      }
+      return nkeyAuthenticator(new TextEncoder().encode(seed));
+    } else if (jwt) {
+      let jwtContent = jwt;
+      try {
+        if (jwt.endsWith(".jwt") || jwt.includes("/")) {
+          jwtContent = readFileSync(jwt, "utf-8").trim();
+        }
+      } catch {
+        // ignore
+      }
+      return jwtAuthenticator(jwtContent);
+    }
+    return undefined;
+  }
+
+  private createTlsOptions(params: URLSearchParams): TlsOptions | undefined {
+    const tlsCa = params.get("tls_ca");
+    const tlsCert = params.get("tls_cert");
+    const tlsKey = params.get("tls_key");
+
+    if (!tlsCa && !tlsCert && !tlsKey) {
+      return undefined;
+    }
+
+    const tls: TlsOptions = {};
+    if (tlsCa) {
+      try {
+        tls.ca = readFileSync(tlsCa, "utf-8");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (tlsCert) {
+      try {
+        tls.cert = readFileSync(tlsCert, "utf-8");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (tlsKey) {
+      try {
+        tls.key = readFileSync(tlsKey, "utf-8");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return tls;
+  }
+
   private normalizeServerUrl(url: string): string {
-    const { password, username, port, protocol, hostname } = new URL(url);
+    const { password, username, port, protocol, hostname, search } = new URL(
+      url,
+    );
     const userPass = password ? `${username}:${password}` : username;
     const auth = username ? `${userPass}@` : "";
     const portStr = port ? `:${port}` : "";
-    return `${protocol}//${auth}${hostname}${portStr}`;
+    return `${protocol}//${auth}${hostname}${portStr}${search}`;
   }
 
   private subjectKey(server: string, subject: string): string {
