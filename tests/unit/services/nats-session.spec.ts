@@ -28,6 +28,32 @@ describe("NatsSession", () => {
     await session.reset();
   });
 
+  it("uses token authentication when only username is provided in URL", async () => {
+    const { connection, session } = buildSession();
+    await session.publish(
+      "nats://mytoken@localhost:4222",
+      "lab.metrics",
+      "payload",
+    );
+    expect(connection.lastOptions?.token).toBe("mytoken");
+    expect(connection.lastOptions?.user).toBeUndefined();
+    expect(connection.lastOptions?.pass).toBeUndefined();
+    await session.reset();
+  });
+
+  it("uses user/pass authentication when both are provided in URL", async () => {
+    const { connection, session } = buildSession();
+    await session.publish(
+      "nats://user:pass@localhost:4222",
+      "lab.metrics",
+      "payload",
+    );
+    expect(connection.lastOptions?.token).toBeUndefined();
+    expect(connection.lastOptions?.user).toBe("user");
+    expect(connection.lastOptions?.pass).toBe("pass");
+    await session.reset();
+  });
+
   it("sends requests with formatted logs and forwards headers", async () => {
     const { connection, session } = buildSession(
       () => new Date("2024-01-01T00:00:00Z"),
