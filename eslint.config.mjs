@@ -1,7 +1,11 @@
+import { builtinModules } from "node:module";
 import typescriptEslint from "typescript-eslint";
 import prettierPlugin from "eslint-plugin-prettier";
+import sonarjs from "eslint-plugin-sonarjs";
 
 export default [
+  ...typescriptEslint.configs.recommended,
+  sonarjs.configs.recommended,
   {
     files: ["**/*.ts"],
   },
