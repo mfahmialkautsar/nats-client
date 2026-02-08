@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { RawLine } from "@/core/nats-document-parser";
+import type { RawLine, NatsDocumentSegment } from "@/core/nats-document-parser";
 import { segmentNatsDocument } from "@/core/nats-document-parser";
 
 const FILE_GLOB = "**/*.nats";
@@ -38,40 +38,45 @@ class NatsFormattingProvider implements vscode.DocumentFormattingEditProvider {
 export class NatsFormatter {
   private static readonly headerlessBodyVerbs = new Set(["REPLY", "PUBLISH"]);
 
-  format(text: string): string {
-    const segments = segmentNatsDocument(text);
-    const lines: string[] = [];
-    const pushLine = (value: string): void => {
-      if (value.length === 0) {
-        if (lines.length === 0 || lines[lines.length - 1].length === 0) {
-          return;
-        }
+  private pushLine(lines: string[], value: string): void {
+    if (value.length === 0) {
+      if (lines.length === 0 || lines[lines.length - 1].length === 0) {
+        return;
       }
-      lines.push(value);
-    };
+    }
+    lines.push(value);
+  }
 
-    for (const segment of segments) {
-      if (segment.kind === "delimiter") {
-        if (lines.length > 0 && lines[lines.length - 1].length !== 0) {
-          lines.push("");
-        }
-        lines.push(segment.line.text.trim());
-        lines.push("");
-        continue;
-      }
-      if (segment.lines.length === 0) {
-        continue;
-      }
-      const block = this.formatBlock(segment.lines);
-      if (block.length === 0) {
-        continue;
-      }
+  private processSegment(lines: string[], segment: NatsDocumentSegment): void {
+    if (segment.kind === "delimiter") {
       if (lines.length > 0 && lines[lines.length - 1].length !== 0) {
         lines.push("");
       }
-      for (const line of block) {
-        pushLine(line);
-      }
+      lines.push(segment.line.text.trim());
+      lines.push("");
+      return;
+    }
+    if (segment.lines.length === 0) {
+      return;
+    }
+    const block = this.formatBlock(segment.lines);
+    if (block.length === 0) {
+      return;
+    }
+    if (lines.length > 0 && lines[lines.length - 1].length !== 0) {
+      lines.push("");
+    }
+    for (const line of block) {
+      this.pushLine(lines, line);
+    }
+  }
+
+  format(text: string): string {
+    const segments = segmentNatsDocument(text);
+    const lines: string[] = [];
+
+    for (const segment of segments) {
+      this.processSegment(lines, segment);
     }
 
     while (lines.length > 0 && lines[lines.length - 1].length === 0) {
@@ -86,47 +91,64 @@ export class NatsFormatter {
   private formatBlock(lines: RawLine[]): string[] {
     const requestIndex = this.findRequestLineIndex(lines);
     if (requestIndex === -1) {
-      return lines.map((line) => line.text.replace(/\s+$/, "")); // trim trailing whitespace only
+      return lines.map((line) => line.text.trimEnd());
     }
-    const before = lines
-      .slice(0, requestIndex)
-      .map((line) => line.text.replace(/\s+$/, ""));
-    const verb = this.extractVerb(lines[requestIndex].text);
-    const requestLine = this.formatRequestLine(lines[requestIndex].text);
 
-    // Determine if we need to preserve leading blank lines before body
-    let preserveLeadingBlankCount = 0;
+    const before = lines.slice(0, requestIndex).map((l) => l.text.trimEnd());
+    const requestLineStr = lines[requestIndex].text;
+    const verb = this.extractVerb(requestLineStr);
+    const formattedRequestLine = this.formatRequestLine(requestLineStr);
+
     let scanIndex = requestIndex + 1;
+    let preserveLeadingBlankCount = 0;
     while (
       scanIndex < lines.length &&
       lines[scanIndex].text.trim().length === 0
     ) {
-      preserveLeadingBlankCount += 1;
-      scanIndex += 1;
+      preserveLeadingBlankCount++;
+      scanIndex++;
     }
 
     const { headerLines, nextIndex } = this.extractHeaders(lines, scanIndex);
     const bodyLines = this.formatBody(lines.slice(nextIndex));
 
     const output: string[] = [];
-    for (const prefix of before) {
-      if (prefix.trim().length === 0) {
+    this.appendPrefixLines(output, before);
+    output.push(formattedRequestLine);
+    output.push(...headerLines);
+
+    this.appendBodyWithPadding(
+      output,
+      bodyLines,
+      headerLines,
+      preserveLeadingBlankCount,
+      verb,
+    );
+
+    return output;
+  }
+
+  private appendPrefixLines(output: string[], lines: string[]): void {
+    for (const line of lines) {
+      if (line.trim().length === 0) {
         if (output.length === 0 || output[output.length - 1].length === 0) {
           continue;
         }
         output.push("");
         continue;
       }
-      output.push(prefix);
+      output.push(line);
     }
-    output.push(requestLine);
-    for (const header of headerLines) {
-      output.push(header);
-    }
+  }
+
+  private appendBodyWithPadding(
+    output: string[],
+    bodyLines: string[],
+    headerLines: string[],
+    preserveLeadingBlankCount: number,
+    verb: string | undefined,
+  ): void {
     if (preserveLeadingBlankCount > 0 && headerLines.length === 0) {
-      // Re-attach the intentionally placed blank lines. If the command also
-      // requires padding (e.g., REPLY/PUBLISH) we should not add a second blank
-      // line — preserving the original count is preferred.
       for (let i = 0; i < preserveLeadingBlankCount; i++) {
         output.push("");
       }
@@ -136,10 +158,7 @@ export class NatsFormatter {
     ) {
       output.push("");
     }
-    for (const line of bodyLines) {
-      output.push(line);
-    }
-    return output;
+    output.push(...bodyLines);
   }
 
   private extractVerb(line: string): string | undefined {
@@ -249,13 +268,13 @@ export class NatsFormatter {
     }
     const body = bodyLines.join("\n");
     if (!JSON_CANDIDATE.test(body.trim())) {
-      return bodyLines.map((line) => line.replace(/\s+$/, ""));
+      return bodyLines.map((line) => line.trimEnd());
     }
     try {
       const parsed = JSON.parse(body);
       return JSON.stringify(parsed, null, 2).split("\n");
     } catch {
-      return bodyLines.map((line) => line.replace(/\s+$/, ""));
+      return bodyLines.map((line) => line.trimEnd());
     }
   }
 }
