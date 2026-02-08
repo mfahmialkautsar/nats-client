@@ -22,9 +22,15 @@ vi.mock("vscode", () => {
       file: vi.fn((path) => ({ path, scheme: "file" })),
     },
     EventEmitter: class {
-      event = () => {};
-      fire() {}
-      dispose() {}
+      event = () => {
+        /* no-op */
+      };
+      fire() {
+        /* no-op */
+      }
+      dispose() {
+        /* no-op */
+      }
     },
   };
 });
@@ -63,9 +69,17 @@ async function setupTestEnvironment() {
   };
 
   const emitterFactory = () => ({
-    event: () => ({ dispose: () => {} }),
-    fire: () => {},
-    dispose: () => {},
+    event: () => ({
+      dispose: () => {
+        /* no-op */
+      },
+    }),
+    fire: () => {
+      /* no-op */
+    },
+    dispose: () => {
+      /* no-op */
+    },
   });
 
   const variableStore = new VariableStore(memento, emitterFactory);

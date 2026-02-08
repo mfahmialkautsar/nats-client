@@ -17,7 +17,9 @@ export function createMessage(
     data: new TextEncoder().encode(body),
     string: () => body,
     json: () => JSON.parse(body),
-    respond: () => {},
+    respond: () => {
+      /* no-op */
+    },
   };
   return { msg };
 }

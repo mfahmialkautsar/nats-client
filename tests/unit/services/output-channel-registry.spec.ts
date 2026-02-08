@@ -15,7 +15,9 @@ class StubChannel implements OutputChannelLike {
     this.lines.push(value);
   }
 
-  show(): void {}
+  show(): void {
+    /* no-op */
+  }
 
   dispose(): void {
     this.disposed = true;

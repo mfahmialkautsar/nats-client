@@ -32,7 +32,9 @@ export class JetStreamFileSystemProvider implements vscode.FileSystemProvider {
     _uri: vscode.Uri,
     _options: { recursive: boolean; excludes: string[] },
   ): vscode.Disposable {
-    return new vscode.Disposable(() => {});
+    return new vscode.Disposable(() => {
+      /* no-op */
+    });
   }
 
   async stat(_uri: vscode.Uri): Promise<vscode.FileStat> {

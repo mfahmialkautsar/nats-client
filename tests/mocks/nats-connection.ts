@@ -40,7 +40,9 @@ export class FakeNatsConnection implements NatsConnectionLike {
       }
     })();
     const subscription = Object.assign(iterator, {
-      unsubscribe: () => {},
+      unsubscribe: () => {
+        /* no-op */
+      },
     });
     return subscription as SubscriptionLike;
   }
