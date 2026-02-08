@@ -1,4 +1,4 @@
-import * as assert from "assert";
+import * as assert from "node:assert";
 import * as vscode from "vscode";
 
 suite("Extension Test Suite", () => {
@@ -43,11 +43,11 @@ suite("Extension Test Suite", () => {
     });
 
     const position = new vscode.Position(lastLine + 1, 2);
-    const list = (await vscode.commands.executeCommand(
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",
       doc.uri,
       position,
-    )) as vscode.CompletionList;
+    );
 
     assert.ok(list);
     assert.ok(list.items.length > 0);

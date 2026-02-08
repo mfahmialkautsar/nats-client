@@ -1,4 +1,4 @@
-import * as assert from "assert";
+import * as assert from "node:assert";
 import * as vscode from "vscode";
 import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer, Wait } from "testcontainers";
@@ -55,8 +55,7 @@ suite("NATS Client VS Code integration", function () {
     );
     assert.ok(extension);
     const api = (await extension.activate()) as ExtensionAPI;
-    const session = api.session;
-    const channelRegistry = api.channelRegistry;
+    const { session, channelRegistry } = api;
 
     const key = "int-sub";
     const subject = "lab.integration.metrics";
@@ -88,8 +87,7 @@ suite("NATS Client VS Code integration", function () {
     );
     assert.ok(extension);
     const api = (await extension.activate()) as ExtensionAPI;
-    const session = api.session;
-    const channelRegistry = api.channelRegistry;
+    const { session, channelRegistry } = api;
 
     const key = "int-reply";
     const subject = "lab.integration.reply";
