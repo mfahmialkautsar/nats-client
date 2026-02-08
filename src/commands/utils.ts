@@ -36,7 +36,7 @@ export function resolveServer(
 }
 
 export function revealIfNew(
-  ctx: CommandContext,
+  _ctx: CommandContext,
   channel: OutputChannelLike,
   isNew: boolean,
 ) {
