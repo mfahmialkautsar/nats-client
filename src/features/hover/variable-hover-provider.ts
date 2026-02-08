@@ -8,14 +8,14 @@ export class VariableHoverProvider implements vscode.HoverProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
   ): vscode.ProviderResult<vscode.Hover> {
-    const range = document.getWordRangeAtPosition(position, /\{\{[^}]+\}\}/);
+    const range = document.getWordRangeAtPosition(position, /\{\{[\w.-]+\}\}/);
     if (!range) {
       return undefined;
     }
 
     const text = document.getText(range);
     // Extract variable name from {{name}}
-    const match = text.match(/\{\{([^}]+)\}\}/);
+    const match = /\{\{([\w.-]+)\}\}/.exec(text);
     if (!match) {
       return undefined;
     }
@@ -33,7 +33,7 @@ export class VariableHoverProvider implements vscode.HoverProvider {
 
     const docText = document.getText();
     const localVarRegex = new RegExp(`^@${variableName}\\s*=\\s*(.*)$`, "m");
-    const localMatch = docText.match(localVarRegex);
+    const localMatch = localVarRegex.exec(docText);
 
     if (localMatch) {
       const localValue = localMatch[1].trim();
