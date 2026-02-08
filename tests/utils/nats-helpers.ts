@@ -27,7 +27,7 @@ export function createHeaders(entries: Record<string, string>): HeadersLike {
     get: (name: string) => entries[name],
     *[Symbol.iterator]() {
       for (const entry of Object.entries(entries)) {
-        yield entry as [string, string];
+        yield entry;
       }
     },
   } as HeadersLike;

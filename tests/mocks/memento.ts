@@ -1,7 +1,7 @@
 import type { Memento } from "vscode";
 
 export class MockMemento implements Memento {
-  private storage = new Map<string, unknown>();
+  private readonly storage = new Map<string, unknown>();
 
   get<T>(key: string): T | undefined;
   get<T>(key: string, defaultValue: T): T;
