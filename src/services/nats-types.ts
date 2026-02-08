@@ -52,6 +52,7 @@ export interface NatsConnectOptions {
   servers: string[];
   user?: string;
   pass?: string;
+  token?: string;
 }
 
 export type NatsConnector = (

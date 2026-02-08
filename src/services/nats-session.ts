@@ -764,11 +764,16 @@ export class NatsSession {
     const { protocol, hostname, port, username, password } = new URL(url);
     const portStr = port ? `:${port}` : "";
     const host = `${protocol}//${hostname}${portStr}`;
-    return {
+    const options: NatsConnectOptions = {
       servers: [host],
-      user: username || undefined,
-      pass: password || undefined,
     };
+    if (username && !password) {
+      options.token = username;
+    } else {
+      options.user = username;
+      options.pass = password;
+    }
+    return options;
   }
 
   private normalizeServerUrl(url: string): string {
