@@ -55,43 +55,32 @@ export async function activate(context: vscode.ExtensionContext) {
   const variableCompletionProvider = new VariableCompletionProvider(
     variableStore,
   );
+  const variableHoverProvider = new VariableHoverProvider(variableStore);
+  const jetStreamFileSystemProvider = new JetStreamFileSystemProvider(session);
+  const jetStreamExplorerProvider = new JetStreamExplorerProvider(
+    session,
+    jetStreamFileSystemProvider,
+  );
+
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
       "nats",
       variableCompletionProvider,
       "{",
     ),
-  );
-
-  const variableHoverProvider = new VariableHoverProvider(variableStore);
-  context.subscriptions.push(
     vscode.languages.registerHoverProvider("nats", variableHoverProvider),
-  );
-  const jetStreamFileSystemProvider = new JetStreamFileSystemProvider(session);
-  const jetStreamExplorerProvider = new JetStreamExplorerProvider(
-    session,
-    jetStreamFileSystemProvider,
-  );
-  context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
       "natsJetStreamExplorer",
       jetStreamExplorerProvider,
     ),
-  );
-  context.subscriptions.push(
     vscode.workspace.registerFileSystemProvider(
       "nats-jetstream",
       jetStreamFileSystemProvider,
       { isCaseSensitive: true, isReadonly: false },
     ),
-  );
-  context.subscriptions.push(
     vscode.commands.registerCommand("nats.jetStreamExplorer.refresh", () =>
       jetStreamExplorerProvider.refresh(),
     ),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "nats.jetStreamExplorer.createStream",
       (node) => jetStreamExplorerProvider.createStream(node),
@@ -116,9 +105,6 @@ export async function activate(context: vscode.ExtensionContext) {
       "nats.jetStreamExplorer.viewConsumerInfo",
       (node) => jetStreamExplorerProvider.viewConsumerInfo(node),
     ),
-  );
-
-  context.subscriptions.push(
     new vscode.Disposable(() => channelRegistry.disposeAll()),
     statusBar,
   );
