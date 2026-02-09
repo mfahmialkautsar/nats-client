@@ -11,8 +11,8 @@ This project is licensed under the MIT License.
 ### Added
 
 - Support for advanced NATS authentication methods via meta headers:
-  - User/Password: `NATS-User`, `NATS-Pass` — can also be provided in the URL (e.g. `nats://user:pass@host:4222`) — https://docs.nats.io/using-nats/developer/connecting/userpass
-  - Token: `NATS-Token` — can also be provided in the URL (e.g. `nats://token@host:4222`) — https://docs.nats.io/using-nats/developer/connecting/userpass#connecting-with-a-user-password-in-the-url
+  - User/Password: `NATS-User`, `NATS-Pass` — can also be provided in the URL (e.g. `nats://user:pass@host:4222`) — https://docs.nats.io/using-nats/developer/connecting/userpass#connecting-with-a-user-password-in-the-url
+  - Token: `NATS-Token` — can also be provided in the URL (e.g. `nats://token@host:4222`) — https://docs.nats.io/using-nats/developer/connecting/token#connecting-with-a-token-in-the-url
   - Credentials File: `NATS-Creds` (supports file path) — https://docs.nats.io/using-nats/developer/connecting/creds
   - NKey: `NATS-Nkey` (supports file path or seed string) — https://docs.nats.io/using-nats/developer/connecting/nkey
   - JWT: `NATS-Jwt` (supports file path or raw JWT) — https://docs.nats.io/using-nats/developer/connecting/creds
